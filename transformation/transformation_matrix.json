@@ -1,0 +1,8 @@
+{
+  "rules": [
+    {"input": "chaos", "output": "architecture"},
+    {"input": "error", "output": "haiku"},
+    {"input": "embarrassment", "output": "lore"},
+    {"input": "fear", "output": "comedy"}
+  ]
+}
