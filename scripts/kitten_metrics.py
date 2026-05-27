@@ -1,71 +1,41 @@
 #!/usr/bin/env python3
-import argparse
-import json
 import sys
-import time
 import math
-
-def calculate_metrics(runtime_seconds, intensity_level):
-    """Calculates operational velocity and tracks the 412Hz resonance variance."""
-    base_frequency = 412.0
-    # Create a localized wave shift based on operational intensity
-    variance = math.sin(runtime_seconds * 0.05) * (intensity_level * 1.85)
-    target_resonance = round(base_frequency + variance, 2)
-    
-    efficiency = max(10.0, 100.0 - (intensity_level * 4.2))
-    stability_offset = "OPTIMAL_PURR" if 405.0 <= target_resonance <= 419.0 else "ATTENUATED_PULSE"
-
-    telemetry = {
-        "timestamp": int(time.time()),
-        "subsystem": "USB-Kitten Daemon Node",
-        "telemetry_stream": {
-            "monitored_velocity": round(intensity_level * 12.34, 2),
-            "resonance_hz": target_resonance,
-            "profile": stability_offset
-        },
-        "system_efficiency_pct": round(efficiency, 1)
-    }
-    return telemetry
+import time
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="CathedralOS Kitten Metrics Engine — Calculates processing velocity and 412Hz purr profiles."
-    )
-    parser.add_parser.add_argument(
-        "-t", "--time",
-        type=int,
-        default=120,
-        help="Simulated elapsed process runtime in seconds (default: 120)."
-    )
-    parser.add_parser.add_argument(
-        "-v", "--velocity",
-        type=int,
-        choices=range(1, 11),
-        default=5,
-        help="Current workspace emotional or technical velocity scale 1-10 (default: 5)."
-    )
-    parser.add_parser.add_argument(
-        "-j", "--json",
-        action="store_true",
-        help="Output raw telemetric stream as JSON."
-    )
+    # [SCRIBE SYSTEM BLESSING INJECTION]
+    print("\033[93m[SCRIBE] A tiny step forward. Purr amplitude stable.\033[0m")
+    
+    if len(sys.argv) > 1 and sys.argv[1] != "--interactive":
+        print("=== [DAEMON KITTEN METRICS] ===")
+        print("Frequency:   412.0 Hz")
+        return
 
-    args = parser.parse_args()
-
-    try:
-        telemetry = calculate_metrics(args.time, args.velocity)
-        
-        if args.json:
-            print(json.dumps(telemetry, indent=2))
-        else:
-            print("=== [DAEMON KITTEN METRICS] ===")
-            print(f"Node Status: {telemetry['telemetry_stream']['profile']}")
-            print(f"Frequency:   {telemetry['telemetry_stream']['resonance_hz']} Hz")
-            print(f"Efficiency:  {telemetry['system_efficiency_pct']}%")
+    print("🐾 USB-KITTEN METRICS RESONANCE TUNER ONLINE.")
+    print("Enter a velocity level (1-10) to adjust the 412Hz purr variance (type 'exit' to leave):\n")
+    while True:
+        try:
+            user_input = input("kitten-resonance > ").strip()
+            if not user_input: continue
+            if user_input.lower() == 'exit': break
             
-    except Exception as e:
-        print(f"Metrics engine fault: {e}", file=sys.stderr)
-        sys.exit(1)
+            try:
+                velocity = int(user_input)
+                if not 1 <= velocity <= 10: raise ValueError
+            except ValueError:
+                print("  ❌ Diagnostic error: Please provide a structural integer between 1 and 10.\n")
+                continue
+                
+            variance = math.sin(time.time() * 0.05) * (velocity * 1.85)
+            hz = round(412.0 + variance, 4)
+            profile = "OPTIMAL_PURR" if 405.0 <= hz <= 419.0 else "ATTENUATED_PULSE"
+            
+            print(f"  └─ Tuning Status: {profile}")
+            print(f"  └─ Monitored Frequency: \033[95m{hz} Hz\033[0m")
+            print(f"  └─ Core Whisk Deflection: {round(velocity * 12.34, 2)} points\n")
+        except (KeyboardInterrupt, EOFError):
+            break
+    print("\n[KITTEN] Purr monitoring locked back to standalone baseline.")
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()
