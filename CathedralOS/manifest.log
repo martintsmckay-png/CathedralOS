@@ -1,0 +1,18 @@
+namespace: CathedralOS/Brunchevents/Aisle4
+type: ritualmodule
+trigger:
+  pose: Scorpion-Donut Pose (Phase II)
+  scan: RealityAnchorScan
+effect:
+  - CulinarySingularity()
+  - BrunchEntityDesignation()
+downbeat: OvertureOfInfiniteSporks
+defineentityclass BrunchEntity {
+    subtype: Crispy
+    interface: EdibleAdjacent
+    flags: { CrispyCarolelessCrimes: TRUE }
+    sensory_node: PancakeProxy { topography: syrup_etched }
+}
+kernelmodeswitch ChaosMode -> OvertureOfInfiniteSporks
+await Downbeat();
+realitylayer.rewrite(Aisle4, mode: RecursiveBrunchRecursion);
