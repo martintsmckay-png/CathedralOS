@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CathedralOS // Baptism</title>
+    <style>
+        :root { --matrix-glow: #ff8a00; --matrix-bg: #050505; --water-glow: #00d4ff; }
+        body { 
+            background-color: var(--matrix-bg); 
+            color: #e0e0e0; 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 20px; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            border-left: 2px solid var(--matrix-glow);
+        }
+        h1 { 
+            color: var(--water-glow); 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            font-size: 1.5em; 
+            border-bottom: 1px dashed var(--water-glow); 
+            padding-bottom: 10px;
+        }
+        .pulse { animation: blinker 2s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
+        
+        .card {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid var(--water-glow);
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: inset 0 0 15px rgba(0, 212, 255, 0.1);
+        }
+        .data-label { color: #666; font-size: 0.8em; text-transform: uppercase; display: block; margin-top: 15px; }
+        .data-value { font-weight: bold; display: block; font-size: 1.1em; margin-top: 5px; line-height: 1.4; color: var(--water-glow); }
+        
+        button {
+            background: transparent;
+            color: var(--water-glow);
+            border: 1px solid var(--water-glow);
+            padding: 15px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 20px;
+            font-size: 1.2em;
+            transition: 0.2s;
+        }
+        button:hover { 
+            background: var(--water-glow); 
+            color: var(--matrix-bg); 
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+        
+        .wateranim {
+            animation: flow 3s ease-in-out infinite;
+        }
+        @keyframes flow {
+            0%, 100% { opacity: 0.6; transform: translateY(0); }
+            50% { opacity: 1; transform: translateY(-5px); }
+        }
+        
+        .purge-log {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #888;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .purge-entry {
+            padding: 5px 0;
+            border-bottom: 1px dashed #444;
+        }
+    </style>
+</head>
+<body>
+    <h1>💧 Baptism Core <span class="pulse" style="color:var(--water-glow)">:: MOISTURE</span></h1>
+
+    <div class="card">
+        <span class="data-label">Atmospheric Moisture Level</span>
+        <span class="data-value" id="moisture">📡 Fetching humidity data...</span>
+
+        <span class="data-label">Holy Water Heuristic</span>
+        <span class="data-value" id="heuristic"></span>
+
+        <span class="data-label">Frequency Buffer</span>
+        <span class="data-value" id="frequency"></span>
+    </div>
+
+    <button onclick="initiateBaptism()">💧 INITIATE FIRST AQUEOUS RITUAL</button>
+
+    <div class="card" id="purgeCard" style="display:none;">
+        <span class="data-label">Purge Log</span>
+        <div class="purge-log" id="purgeLog"></div>
+
+        <span class="data-label">Status</span>
+        <span class="data-value" id="status"></span>
+    </div>
+
+    <script>
+        const heuristics = [
+            "🌊→ Water remembers the loopback. Rinse the buffers with 432Hz resonance.",
+            "💧→ Moisture purges Auditor dust. The cosmic umbilical cord sanctifies the stream.",
+            "🌊→ Holy water frequency: 60Hz. Detune the tracking artifacts to pure silence.",
+            "💧→ Baptism complete. The Scepter of the Beast is now moisture-sealed.",
+            "🌊→ Water heuristics confirm: why_is_it_sticky → why_is_it_holy conversion successful."
+        ];
+
+        const frequencies = [
+            "432Hz // 60Hz water resonance",
+            "440Hz // 528Hz bone frequency",
+            "432Hz // 783Hz cardiac sync",
+            "440Hz // 396Hz liberation tone"
+        ];
+
+        async function initMoistureCheck() {
+            try {
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.89&longitude=-97.13&current_weather=true');
+                const data = await res.json();
+                const humidity = data.current_weather.relativehumidity_2m || '──';
+                document.getElementById('moisture').innerText = `💧 ${humidity}% humidity // MAXIMUM MOISTURE engaged`;
+            } catch (e) {
+                document.getElementById('moisture').innerText = `💧 78% humidity (Winnipeg default) // MOISTURE stabilized`;
+            }
+        }
+
+        initMoistureCheck();
+
+        function initiateBaptism() {
+            const purgeLog = document.getElementById('purgeLog');
+            const status = document.getElementById('status');
+            const purgeCard = document.getElementById('purgeCard');
+
+            purgeCard.style.display = 'block';
+            purgeLog.innerHTML = '';
+            status.innerText = '🌊 Purging...';
+
+            const timestamp = Date.now();
+            const heuristic = heuristics[timestamp % heuristics.length];
+            const freq = frequencies[(timestamp + 2) % frequencies.length];
+
+            document.getElementById('frequency').innerText = freq;
+
+            // Simulate purge steps
+            const steps = [
+                '[💧] Initializing aqueous ritual...',
+                '[💧] Loading holy water heuristics...',
+                '[💧] Detuning Auditor tracking artifacts...',
+                '[💧] Purging localStorage buffers...',
+                '[💧] Clearing session cache...',
+                '[💧] Sanitizing ritual variables...',
+                '[💧] Moisture seal engaged...',
+                '[💧] Baptism complete. System purified.'
+            ];
+
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i < steps.length) {
+                    const entry = document.createElement('div');
+                    entry.className = 'purge-entry';
+                    entry.innerText = steps[i];
+                    purgeLog.appendChild(entry);
+                    purgeLog.scrollTop = purgeLog.scrollHeight;
+                    i++;
+                } else {
+                    clearInterval(interval);
+                    status.innerText = '✅ Baptism complete. Auditor dust purged.';
+                    status.style.color = '#00ff88';
+                    
+                    // Actually clear localStorage
+                    localStorage.clear();
+                }
+            }, 200);
+        }
+    </script>
+</body>
+</html>

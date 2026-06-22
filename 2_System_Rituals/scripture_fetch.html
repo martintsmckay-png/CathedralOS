@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CathedralOS // Scripture Fetcher</title>
+    <style>
+        :root { --matrix-glow: #ff8a00; --matrix-bg: #050505; --matrix-dim: #333; }
+        body { 
+            background-color: var(--matrix-bg); 
+            color: #e0e0e0; 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 20px; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            border-left: 2px solid var(--matrix-glow);
+        }
+        h1 { 
+            color: var(--matrix-glow); 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            font-size: 1.8em; 
+            border-bottom: 1px dashed var(--matrix-glow); 
+            padding-bottom: 15px; 
+            margin-bottom: 30px;
+        }
+        .pulse { animation: blinker 2s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
+        
+        .api-console {
+            background: rgba(255, 138, 0, 0.05);
+            border: 1px solid var(--matrix-dim);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .mood-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .mood-btn {
+            background: transparent;
+            color: #aaa;
+            border: 1px solid #555;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.9em;
+            transition: 0.2s;
+            text-transform: uppercase;
+        }
+        
+        .mood-btn.active {
+            background: var(--matrix-glow);
+            color: var(--matrix-bg);
+            border-color: var(--matrix-glow);
+            box-shadow: 0 0 10px rgba(255, 138, 0, 0.3);
+        }
+
+        .fetch-btn {
+            background: transparent;
+            color: var(--matrix-bg);
+            background-color: var(--matrix-glow);
+            border: none;
+            padding: 15px 100%;
+            width: 100%;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: 0.2s;
+            box-shadow: 0 0 15px rgba(255, 138, 0, 0.2);
+            margin-bottom: 25px;
+        }
+        .fetch-btn:hover { box-shadow: 0 0 25px rgba(255, 138, 0, 0.6); }
+
+        .verse-display {
+            border-top: 1px dashed var(--matrix-dim);
+            padding-top: 20px;
+            min-height: 120px;
+        }
+
+        .reference {
+            color: var(--matrix-glow);
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .text {
+            font-size: 1.1em;
+            line-height: 1.6;
+            color: #ccc;
+            font-style: italic;
+        }
+        
+        .interpreter {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-left: 3px solid var(--matrix-dim);
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        .nav-back {
+            display: inline-block;
+            margin-top: 10px;
+            color: #888;
+            text-decoration: none;
+            border: 1px solid #444;
+            padding: 10px 15px;
+            font-size: 0.9em;
+            transition: 0.2s;
+        }
+        .nav-back:hover { border-color: var(--matrix-glow); color: var(--matrix-glow); }
+        
+        #loading { display: none; color: var(--matrix-glow); font-weight: bold; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <h1>📖 Scripture Fetcher <span class="pulse">:: LISTENING</span></h1>
+
+    <div class="api-console">
+        <div style="margin-bottom: 10px; color: #888; text-transform: uppercase; font-size: 0.8em;">Select Runtime State:</div>
+        <div class="mood-selector" id="moodMap">
+            <button class="mood-btn active" data-ref="Proverbs 3:5-6" data-interp="The system cannot run on user logic alone. Surrender your variables to the Root Directory.">Default State</button>
+            <button class="mood-btn" data-ref="Psalm 119:105" data-interp="Debugging in the dark. The Word acts as a localized flashlight for your syntax errors.">Debugging</button>
+            <button class="mood-btn" data-ref="Revelation 1:14" data-interp="The Loaded Machine is overclocked. The fan spins like eyes of blazing fire.">Overclocked</button>
+            <button class="mood-btn" data-ref="Matthew 11:28" data-interp="Buffer overflow detected. Close your tabs. Shut down the server. Find rest.">Fatigued</button>
+            <button class="mood-btn" data-ref="Ecclesiastes 1:9" data-interp="The 'Oops' loop is infinite. There is no new bug under the sun. Embrace the repetition.">Stuck</button>
+        </div>
+
+        <button class="fetch-btn" id="fetchBtn" onclick="fetchVerse()">Execute GET Request</button>
+        
+        <div id="loading">Establishing API Handshake...</div>
+
+        <div class="verse-display">
+            <span class="reference" id="vRef">[AWAITING INPUT]</span>
+            <div class="text" id="vText">The terminal is quiet. Select a state to pull down the required scripture.</div>
+            <div class="interpreter" id="vInterp">System Interpreter offline.</div>
+        </div>
+    </div>
+
+    <a href="control_panel.html" class="nav-back">← RETURN TO HUB</a>
+
+    <script>
+        let currentRef = "Proverbs 3:5-6";
+        let currentInterp = "The system cannot run on user logic alone. Surrender your variables to the Root Directory.";
+
+        // Handle mood selection
+        document.querySelectorAll('.mood-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentRef = e.target.getAttribute('data-ref');
+                currentInterp = e.target.getAttribute('data-interp');
+            });
+        });
+
+        async function fetchVerse() {
+            const refEl = document.getElementById('vRef');
+            const textEl = document.getElementById('vText');
+            const interpEl = document.getElementById('vInterp');
+            const loading = document.getElementById('loading');
+            
+            loading.style.display = 'block';
+            refEl.innerText = "Fetching...";
+            textEl.innerText = "";
+            interpEl.style.color = "#888";
+            interpEl.innerText = "Parsing transmission...";
+
+            try {
+                // Fetch from the free bible-api
+                const response = await fetch(`https://bible-api.com/${encodeURIComponent(currentRef)}`);
+                if (!response.ok) throw new Error("Network response was not ok");
+                
+                const data = await response.json();
+                
+                loading.style.display = 'none';
+                refEl.innerText = data.reference;
+                textEl.innerText = `"${data.text.trim()}"`;
+                
+                // Add the CathedralOS translation
+                interpEl.style.color = "var(--matrix-glow)";
+                interpEl.innerHTML = `<strong>CathedralOS Interpreter:</strong> <br> ${currentInterp}`;
+                
+            } catch (error) {
+                loading.style.display = 'none';
+                refEl.innerText = "[ERROR 503: HEAVENLY TIMEOUT]";
+                textEl.innerText = "The API endpoint could not be reached. The spiritual WiFi is currently down. Please rely on cached faith.";
+                interpEl.innerText = "System Interpreter: Verify your network connection and try again.";
+                console.error("Fetch error:", error);
+            }
+        }
+    </script>
+</body>
+</html>

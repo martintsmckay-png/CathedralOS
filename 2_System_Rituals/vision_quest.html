@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CathedralOS // Vision Quest</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        :root { --matrix-glow: #ff8a00; --matrix-bg: #050505; }
+        body { background-color: var(--matrix-bg); color: #e0e0e0; font-family: 'Courier New', Courier, monospace; padding: 20px; max-width: 600px; margin: 0 auto; border-left: 2px solid var(--matrix-glow); }
+        h1 { color: var(--matrix-glow); text-transform: uppercase; letter-spacing: 2px; font-size: 1.5em; border-bottom: 1px dashed var(--matrix-glow); padding-bottom: 10px; }
+        .card { background: rgba(255, 138, 0, 0.05); border: 1px solid var(--matrix-glow); padding: 20px; margin-top: 20px; box-shadow: inset 0 0 15px rgba(255, 138, 0, 0.1); }
+        .data-label { color: #888; font-size: 0.8em; text-transform: uppercase; display: block; margin-top: 15px; }
+        .data-value { font-weight: bold; display: block; font-size: 1.1em; margin-top: 5px; line-height: 1.4; }
+        a { color: var(--matrix-glow); text-decoration: none; border-bottom: 1px dashed var(--matrix-glow); transition: 0.2s; }
+        a:hover { background: var(--matrix-glow); color: var(--matrix-bg); }
+        button { background: transparent; color: var(--matrix-glow); border: 1px solid var(--matrix-glow); padding: 15px; cursor: pointer; font-family: inherit; font-weight: bold; width: 100%; margin-top: 20px; font-size: 1.2em; transition: 0.2s; }
+        button:hover { background: var(--matrix-glow); color: var(--matrix-bg); }
+        .pulse { animation: blinker 2s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+    <h1>📡 Vision Quest Core <span class="pulse">:: ONLINE</span></h1>
+
+    <button onclick="requestCoordinates()">INVOKE PROTOCOL</button>
+    <button onclick="exportSnapshot()" id="exportBtn" style="display:none; margin-top:10px; border-color: #555; color: #aaa;">[ 📸 EXPORT DASHBOARD SNAPSHOT ]</button>
+
+    <div class="card" id="questCard" style="display:none;">
+        <span class="data-label">Resonance Frequency</span>
+        <span class="data-value" id="angelNum"></span>
+
+        <span class="data-label">Sacred Inventory</span>
+        <span class="data-value" id="inventory"></span>
+
+        <span class="data-label">Atmospheric Bone Prophecy</span>
+        <span class="data-value" id="boneReading"></span>
+
+        <span class="data-label">Scriptural Anchor</span>
+        <span class="data-value" id="scriptureText"></span>
+
+        <span class="data-label">Frequency Directive (Spotify)</span>
+        <span class="data-value" id="playlist"></span>
+
+        <span class="data-label">Raisin Breadcrumb</span>
+        <span class="data-value" id="breadcrumb"></span>
+
+        <span class="data-label">Terminal Fortune</span>
+        <span class="data-value" id="fortune"></span>
+    </div>
+
+    <script>
+        const colors = ["Oxidation Green", "Terminal Amber", "Copper Wire", "Deep Indigo", "Ash Grey", "Sidewalk Pink", "Neon Rust"];
+        const foods = ["Ginger root", "Slow-cooked beef ribs", "Black coffee", "Bannock", "Moonwalk Peanut Butter Pie", "A single mandarin orange", "Dark chocolate"];
+        
+        let breadcrumbs = [];
+        let fortunes = [];
+
+        async function loadContributions() {
+            try {
+                const res = await fetch('oracle_contributions.json');
+                const data = await res.json();
+                breadcrumbs = data.breadcrumbs || [];
+                fortunes = data.fortunes || [];
+            } catch (e) {
+                breadcrumbs = [
+                    "Follow the crows west at dusk.",
+                    "Look for the house with the painted rocks.",
+                    "Listen for the hum of the transformer station.",
+                    "Leave a copper coin on the third bench you pass.",
+                    "Find a puddle that reflects a neon sign."
+                ];
+                fortunes = [
+                    "You will find copper in unexpected places.",
+                    "The text buffer is gathering momentum. Wait.",
+                    "A neighbor requires the MARM ledger today.",
+                    "Your structural geometry is sound. Proceed.",
+                    "The 432Hz frequency will reveal the next step."
+                ];
+            }
+        }
+
+        function requestCoordinates() {
+            document.getElementById('questCard').style.display = 'none';
+            document.getElementById('exportBtn').style.display = 'none';
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(invokeQuest, fallbackQuest);
+            } else {
+                fallbackQuest();
+            }
+        }
+
+        async function invokeQuest(position) {
+            const lat = position ? position.coords.latitude : 49.89;
+            const lon = position ? position.coords.longitude : -97.13;
+            executeRitual(lat, lon);
+        }
+
+        function fallbackQuest() {
+            executeRitual(49.89, -97.13);
+        }
+
+        async function executeRitual(lat, lon) {
+            await loadContributions();
+
+            const timestamp = Date.now();
+            const angelNumber = (timestamp % 888) + 111; 
+            
+            const luckyColor = colors[timestamp % colors.length];
+            const luckyFood = foods[(timestamp + 2) % foods.length];
+            
+            let boneProphecy = "🦴→ Gathering osteological data...";
+            let playlistHTML = "<a href='https://open.spotify.com' target='_blank'>[🎵 LISTEN: 432Hz Ambient / Drone]</a>";
+            let verseRef = "John 3:8"; 
+            
+            try {
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+                const data = await res.json();
+                const code = data.current_weather.weathercode;
+                
+                if (code <= 3) {
+                    boneProphecy = "☀️→ Crow skull: Seek mirrored surfaces and bright reflections.";
+                    playlistHTML = "<a href='https://open.spotify.com' target='_blank'>[🎵 LISTEN: Synthwave / Outrun]</a>";
+                    verseRef = "Ecclesiastes 11:7"; 
+                } else if (code <= 69) {
+                    boneProphecy = "🌧️→ Rib of drowned poets: Follow gutter streams and damp concrete.";
+                    playlistHTML = "<a href='https://open.spotify.com' target='_blank'>[🎵 LISTEN: Lo-Fi Rain Beats]</a>";
+                    verseRef = "Ezekiel 34:26"; 
+                } else {
+                    boneProphecy = "⛈️→ Lightning-fused vertebrae: Count the seconds between flash and thunder.";
+                    playlistHTML = "<a href='https://open.spotify.com' target='_blank'>[🎵 LISTEN: Heavy Metal Storm]</a>";
+                    verseRef = "Job 37:4"; 
+                }
+
+                document.getElementById('scriptureText').innerText = "📖→ Consulting the sacred texts...";
+                const bibleRes = await fetch(`https://bible-api.com/${verseRef}`);
+                const bibleData = await bibleRes.json();
+                document.getElementById('scriptureText').innerText = `📖→ ${bibleData.reference}: "${bibleData.text.trim()}"`;
+
+            } catch (e) {
+                boneProphecy = "💨→ Wind-scattered phalanges: Track the feather drifts.";
+                document.getElementById('scriptureText').innerText = "📖→ John 3:8: 'The wind blows wherever it pleases. You hear its sound, but you cannot tell where it comes from or where it is going.'";
+            }
+
+            document.getElementById('angelNum').innerText = angelNumber + " Hz";
+            document.getElementById('boneReading').innerText = boneProphecy;
+            document.getElementById('inventory').innerText = `Carry [${luckyColor}] // Consume [${luckyFood}]`;
+            document.getElementById('playlist').innerHTML = playlistHTML;
+            
+            if (breadcrumbs.length > 0) {
+                document.getElementById('breadcrumb').innerText = breadcrumbs[timestamp % breadcrumbs.length];
+            }
+            if (fortunes.length > 0) {
+                document.getElementById('fortune').innerText = fortunes[(timestamp + 3) % fortunes.length];
+            }
+            
+            document.getElementById('questCard').style.display = 'block';
+            document.getElementById('exportBtn').style.display = 'block';
+        }
+
+        function exportSnapshot() {
+            const card = document.getElementById('questCard');
+            const originalBorder = card.style.border;
+            
+            card.style.border = "2px solid #ff8a00"; 
+            
+            html2canvas(card, {
+                backgroundColor: "#050505",
+                scale: 2
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `CathedralOS_Quest_${Date.now()}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+                
+                card.style.border = originalBorder;
+            });
+        }
+    </script>
+</body>
+</html>

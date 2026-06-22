@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CathedralOS // Playlist Generator</title>
+    <style>
+        :root { --matrix-glow: #ff8a00; --matrix-bg: #050505; --matrix-dim: #333; }
+        body { 
+            background-color: var(--matrix-bg); 
+            color: #e0e0e0; 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 20px; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            border-left: 2px solid var(--matrix-glow);
+        }
+        h1 { 
+            color: var(--matrix-glow); 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            font-size: 1.5em; 
+            border-bottom: 1px dashed var(--matrix-glow); 
+            padding-bottom: 10px;
+        }
+        .pulse { animation: blinker 2s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
+        
+        .card {
+            background: rgba(255, 138, 0, 0.05);
+            border: 1px solid var(--matrix-glow);
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: inset 0 0 15px rgba(255, 138, 0, 0.1);
+        }
+        .data-label { color: #888; font-size: 0.8em; text-transform: uppercase; display: block; margin-top: 15px; }
+        .data-value { font-weight: bold; display: block; font-size: 1.1em; margin-top: 5px; line-height: 1.4; }
+        a { color: var(--matrix-glow); text-decoration: none; border-bottom: 1px dashed var(--matrix-glow); transition: 0.2s; }
+        a:hover { background: var(--matrix-glow); color: var(--matrix-bg); }
+        
+        button {
+            background: transparent;
+            color: var(--matrix-glow);
+            border: 1px solid var(--matrix-glow);
+            padding: 15px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 20px;
+            font-size: 1.2em;
+            transition: 0.2s;
+        }
+        button:hover { 
+            background: var(--matrix-glow); 
+            color: var(--matrix-bg); 
+        }
+        
+        .track-list {
+            margin-top: 15px;
+            border-left: 2px solid var(--matrix-glow);
+            padding-left: 15px;
+        }
+        .track {
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--matrix-dim);
+        }
+        .track:last-child { border-bottom: none; }
+        .track-title { color: var(--matrix-glow); font-weight: bold; }
+        .track-artist { color: #888; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <h1>🎵 Playlist Generator <span class="pulse">:: ONLINE</span></h1>
+
+    <button onclick="generatePlaylist()">⚡ GENERATE FREQUENCY MATRIX</button>
+
+    <div class="card" id="playlistCard" style="display:none;">
+        <span class="data-label">Atmospheric Mood</span>
+        <span class="data-value" id="mood"></span>
+
+        <span class="data-label">Spotify Playlist</span>
+        <span class="data-value" id="playlistLink"></span>
+
+        <span class="data-label">Opening Track</span>
+        <span class="data-value" id="openingTrack"></span>
+
+        <span class="data-label">Tracklist</span>
+        <div class="track-list" id="tracklist"></div>
+
+        <span class="data-label">Frequency Baseline</span>
+        <span class="data-value" id="baseline"></span>
+    </div>
+
+    <script>
+        const playlists = {
+            'victory': {
+                name: 'Victory Lap / Synthwave Outrun',
+                url: 'https://open.spotify.com/playlist/37i9dQZF1DXdLEN7aqioJC',
+                tracks: [
+                    { title: 'Nightcall', artist: 'Kavinsky' },
+                    { title: 'Reset', artist: 'The Midnight' },
+                    { title: 'Sunset', artist: 'Timecop1983' },
+                    { title: 'Los Angeles', artist: 'FM-84' },
+                    { title: 'Running in the Night', artist: 'FM-84' }
+                ],
+                baseline: '120 BPM // 432Hz'
+            },
+            'storm': {
+                name: 'Heavy Metal Storm / Thunder',
+                url: 'https://open.spotify.com/playlist/37i9dQZF1DX9qNs32fujYe',
+                tracks: [
+                    { title: 'Ace of Spades', artist: 'Motörhead' },
+                    { title: 'Carry On', artist: 'Mercyful Fate' },
+                    { title: 'Raining Blood', artist: 'Slayer' },
+                    { title: 'Painkiller', artist: 'Judas Priest' },
+                    { title: 'Heart of a Dragon', artist: 'Loudness' }
+                ],
+                baseline: '140 BPM // 440Hz'
+            },
+            'rain': {
+                name: 'Lo-Fi Rain Beats / Melancholic',
+                url: 'https://open.spotify.com/playlist/37i9dQZF1DWWQRwui0ExPn',
+                tracks: [
+                    { title: 'Affection', artist: 'Jinsang' },
+                    { title: 'Deep Coral', artist: 'Kupla' },
+                    { title: 'Snowfall', artist: 'Osqudo' },
+                    { title: 'Rainy Evening', artist: 'Nolimit Music' },
+                    { title: 'Moonlight', artist: 'Mikael Midss' }
+                ],
+                baseline: '80 BPM // 432Hz'
+            },
+            'ambient': {
+                name: '432Hz Ambient / Drone',
+                url: 'https://open.spotify.com/playlist/37i9dQZF1DWZtZ8vUCzche',
+                tracks: [
+                    { title: 'Spiegel', artist: 'Biosphere' },
+                    { title: 'Anemone', artist: 'Aphex Twin' },
+                    { title: 'Deep Blue', artist: 'Gas' },
+                    { title: 'Waves', artist: 'Tim Hecker' },
+                    { title: 'Echos', artist: 'Stars of the Lid' }
+                ],
+                baseline: '60 BPM // 432Hz'
+            }
+        };
+
+        async function generatePlaylist() {
+            const timestamp = Date.now();
+            const moodLink = document.getElementById('moodLink');
+            const playlistLink = document.getElementById('playlistLink');
+            const openingTrack = document.getElementById('openingTrack');
+            const tracklist = document.getElementById('tracklist');
+            const baseline = document.getElementById('baseline');
+
+            document.getElementById('playlistCard').style.display = 'block';
+            moodLink.innerText = '📡 Fetching atmospheric mood...';
+
+            try {
+                // Fetch Winnipeg weather
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=49.89&longitude=-97.13&current_weather=true');
+                const data = await res.json();
+                const code = data.current_weather.weathercode;
+
+                let moodKey = 'ambient';
+                let moodText = '432Hz Ambient / Cosmic Drift';
+
+                if (code <= 3) {
+                    moodKey = 'victory';
+                    moodText = '☀️ Victory Sun / Synthwave Outrun';
+                } else if (code <= 69) {
+                    moodKey = 'rain';
+                    moodText = '🌧️ Rain Beats / Lo-Fi Melancholic';
+                } else {
+                    moodKey = 'storm';
+                    moodText = '⛈️ Storm Chase / Heavy Metal Thunder';
+                }
+
+                const playlist = playlists[moodKey];
+                moodLink.innerText = moodText;
+                playlistLink.innerHTML = `<a href="${playlist.url}" target="_blank">[🎵 OPEN: ${playlist.name}]</a>`;
+                openingTrack.innerText = `🎶→ ${playlist.tracks[0].title} // ${playlist.tracks[0].artist}`;
+                baseline.innerText = playlist.baseline;
+
+                // Build tracklist
+                tracklist.innerHTML = '';
+                playlist.tracks.forEach(track => {
+                    const div = document.createElement('div');
+                    div.className = 'track';
+                    div.innerHTML = `<span class="track-title">${track.title}</span> <span class="track-artist">// ${track.artist}</span>`;
+                    tracklist.appendChild(div);
+                });
+
+            } catch (e) {
+                moodLink.innerText = '💨 Wind-Scattered / Ambient Default';
+                playlistLink.innerHTML = `<a href="${playlists['ambient'].url}" target="_blank">[🎵 OPEN: ${playlists['ambient'].name}]</a>`;
+                openingTrack.innerText = `🎶→ ${playlists['ambient'].tracks[0].title} // ${playlists['ambient'].tracks[0].artist}`;
+                baseline.innerText = playlists['ambient'].baseline;
+            }
+        }
+    </script>
+</body>
+</html>

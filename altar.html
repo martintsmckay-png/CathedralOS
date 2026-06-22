@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        :root { --warm-amber: #f4e1c1; --parchment: #fdf5e6; --table-wood: #6f4e37; }
+        body { background-color: #2b2522; font-family: 'Courier New', monospace; color: var(--warm-amber); display: flex; flex-direction: column; align-items: center; }
+        .altar-table { display: grid; grid-template-columns: repeat(3, 100px); gap: 15px; margin: 20px; }
+        .relic { background: var(--table-wood); padding: 15px; border-radius: 8px; cursor: pointer; text-align: center; }
+        #omen-display { margin-top: 20px; padding: 15px; border: 1px solid var(--warm-amber); min-width: 300px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="altar-table">
+        <!-- The Bone Reader -->
+        <div class="relic" onclick="castBones()">🦴<br>Bone Reader</div>
+        <!-- The Kitten Guardian -->
+        <div class="relic" onclick="checkKitten()">🐈<br>Kitten</div>
+    </div>
+
+    <div id="omen-display">The Altar is silent. Awaiting ritual...</div>
+
+    <script>
+        // Update this to fetch results from your shell scripts via a local server
+        function castBones() {
+            document.getElementById('omen-display').innerText = "Casting bones... The Cathedral grows; memories are settling into the mortar.";
+        }
+
+        function checkKitten() {
+            document.getElementById('omen-display').innerText = "🐈 [Kitten]: *purr* The logs are quiet. All is stable.";
+        }
+    </script>
+</body>
+</html>
+

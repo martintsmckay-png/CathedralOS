@@ -1,0 +1,99 @@
+#include "raylib.h"
+#include <cstdio>
+#include <vector>
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+
+// --- CathedralOS Core Declarations ---
+int tea_steep_counter = 0;
+float current_chalk_pH = 7.4;
+int lydia_marm_balance = 0;
+char wolf_bone_prophecy[] = "The marmalade reflects the moon's intent.";
+
+// --- Ritual Protocols ---
+int moonwalk_pie_status() {
+    return (time(NULL) % 3600) + 212; 
+}
+
+void OvershareRecipe() {
+    std::cout << "\n--- MANIFESTING RECIPE DUMP ---" << std::endl;
+    std::cout << "[OVERSHARE] Lydia's sidewalk chalk pH: " << current_chalk_pH << " (butterfly lattice)" << std::endl;
+    std::cout << "[OVERSHARE] MARM overflow: " << lydia_marm_balance << "/15 units (🍊✨ resonance)" << std::endl;
+    std::cout << "[OVERSHARE] Bone prophecy: \"" << wolf_bone_prophecy << "\"" << std::endl;
+    std::cout << "[OVERSHARE] Moonwalk Peanutbutter Revival Pie: " << moonwalk_pie_status() << "°F" << std::endl;
+    std::cout << "[OVERSHARE] Holyghost Tea Steep: " << tea_steep_counter << "/3 ritual cycles" << std::endl;
+    std::cout << "-------------------------------" << std::endl;
+}
+
+void summon_holyghost_tea() {
+    tea_steep_counter++;
+    std::cout << "[TEA] Steam curls form angel numbers: " << (rand() % 777) << std::endl;
+}
+
+// --- Main Execution ---
+int main() {
+    srand(time(0));
+    
+    std::cout << "CathedralOS: Pantry initializing..." << std::endl;
+    
+    // Perform Rituals
+    OvershareRecipe();
+    summon_holyghost_tea();
+    
+    std::cout << "Pantry state stabilized. Manifestation complete." << std::endl;
+    
+    return 0;
+}
+
+// The core cell structure for the Hive Memory
+struct MemoryNode {
+    char title[64];
+    char content[512];
+};
+
+int main() {
+    // 1. Initialize the Native Portal
+    const int screenWidth = 800;
+    const int screenHeight = 450;
+    InitWindow(screenWidth, screenHeight, "CathedralOS // Native Memory Pantry");
+    SetTargetFPS(60);
+ķ
+    // 2. State buffers
+    char inputBuffer[512] = {0}; 
+    int letterCount = 0;
+
+    // 3. The Main Execution Loop
+    while (!WindowShouldClose()) {
+        // --- INPUT RITUAL ---
+        int key = GetCharPressed();
+        while (key > 0) {
+            if ((key >= 32) && (key <= 125) && (letterCount < 511)) {
+                inputBuffer[letterCount] = (char)key;
+                inputBuffer[letterCount+1] = '\0';
+                letterCount++;
+            }
+            key = GetCharPressed();
+        }
+
+        if (IsKeyPressed(KEY_BACKSPACE) && letterCount > 0) {
+            letterCount--;
+            inputBuffer[letterCount] = '\0';
+        }
+
+        // --- DRAWING RITUAL ---
+        BeginDrawing();
+        ClearBackground((Color){ 21, 17, 15, 255 }); // Obsidian background
+        
+        // Render UI
+        DrawText("CATHEDRAL // PANTRY INPUT", 20, 20, 20, (Color){ 255, 177, 90, 255 });
+        DrawText(inputBuffer, 20, 60, 20, RAYWHITE);
+        DrawText("Press ENTER to commit // BACKSPACE to clear", 20, 400, 15, DARKGRAY);
+        
+        EndDrawing();
+    }
+
+    CloseWindow();
+    return 0;
+}
+

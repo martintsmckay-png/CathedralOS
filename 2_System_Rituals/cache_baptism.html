@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CathedralOS // Cache Baptism</title>
+    <style>
+        :root { --matrix-glow: #ff8a00; --matrix-bg: #050505; --matrix-dim: #333; }
+        body { 
+            background-color: var(--matrix-bg); 
+            color: #e0e0e0; 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 20px; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            border-left: 2px solid var(--matrix-glow);
+        }
+        h1 { 
+            color: var(--matrix-glow); 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            font-size: 1.8em; 
+            border-bottom: 1px dashed var(--matrix-glow); 
+            padding-bottom: 15px; 
+            margin-bottom: 30px;
+        }
+        .pulse { animation: blinker 2s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
+        
+        .console-window {
+            background: rgba(255, 138, 0, 0.05);
+            border: 1px solid var(--matrix-dim);
+            padding: 20px;
+            min-height: 200px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #output-log {
+            flex-grow: 1;
+            font-size: 0.9em;
+            color: #aaa;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .log-line { margin: 5px 0; }
+        .log-success { color: var(--matrix-glow); font-weight: bold; }
+
+        .purify-btn {
+            background: transparent;
+            color: var(--matrix-bg);
+            background-color: var(--matrix-glow);
+            border: none;
+            padding: 15px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: 0.2s;
+            box-shadow: 0 0 15px rgba(255, 138, 0, 0.2);
+        }
+        .purify-btn:hover { box-shadow: 0 0 25px rgba(255, 138, 0, 0.6); }
+        .purify-btn:disabled { background-color: var(--matrix-dim); color: #888; cursor: not-allowed; box-shadow: none; }
+
+        .nav-back {
+            display: inline-block;
+            color: #888;
+            text-decoration: none;
+            border: 1px solid #444;
+            padding: 10px 15px;
+            font-size: 0.9em;
+            transition: 0.2s;
+        }
+        .nav-back:hover { border-color: var(--matrix-glow); color: var(--matrix-glow); }
+    </style>
+</head>
+<body>
+    <h1>💧 Cache Baptism <span class="pulse">:: READY</span></h1>
+
+    <div class="console-window">
+        <div id="output-log">
+            <div class="log-line">System memory is burdened with stale artifacts.</div>
+            <div class="log-line">Awaiting absolution protocol...</div>
+        </div>
+        <button class="purify-btn" id="purifyBtn" onclick="initiateBaptism()">Initiate Baptism Protocol</button>
+    </div>
+
+    <a href="control_panel.html" class="nav-back">← RETURN TO HUB</a>
+
+    <script>
+        const logs = [
+            "Isolating corrupted memory blocks...",
+            "Submerging RAM in digital holy water...",
+            "Exorcising leftover temporary files...",
+            "Forgiving local storage sins...",
+            "Realigning byte architecture with the Root...",
+            "<span class='log-success'>[SUCCESS] System Absolution Complete. The cache is clean.</span>"
+        ];
+
+        function initiateBaptism() {
+            const btn = document.getElementById('purifyBtn');
+            const logArea = document.getElementById('output-log');
+            
+            btn.disabled = true;
+            btn.innerText = "PURIFYING...";
+            logArea.innerHTML = "";
+
+            let delay = 0;
+            logs.forEach((log, index) => {
+                setTimeout(() => {
+                    logArea.innerHTML += `<div class="log-line">> ${log}</div>`;
+                    if (index === logs.length - 1) {
+                        btn.innerText = "RE-INITIATE";
+                        btn.disabled = false;
+                    }
+                }, delay);
+                delay += 800; // 800ms between each line
+            });
+        }
+    </script>
+</body>
+</html>

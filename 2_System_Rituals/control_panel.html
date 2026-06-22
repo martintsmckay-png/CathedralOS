@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CathedralOS // Control Panel</title>
+    <style>
+        :root { 
+            --matrix-glow: #ff8a00; 
+            --matrix-bg: #050505; 
+            --matrix-dim: #333; 
+            --water-blue: #00aaff;
+            --drawer-bg: #0a1424;
+        }
+        body { 
+            background-color: var(--matrix-bg); 
+            color: #e0e0e0; 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 20px; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            border-left: 2px solid var(--matrix-glow);
+            overflow-x: hidden;
+            transition: background-color 0.5s ease;
+        }
+        h1 { 
+            color: var(--matrix-glow); 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            font-size: 1.8em; 
+            border-bottom: 1px dashed var(--matrix-glow); 
+            padding-bottom: 15px; 
+            margin-bottom: 30px;
+        }
+        .pulse { animation: blinker 2s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 18px;
+            margin-bottom: 40px;
+        }
+        .ritual-btn {
+            background: transparent;
+            color: var(--matrix-glow);
+            border: 1px solid var(--matrix-glow);
+            padding: 25px 15px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: 0.2s;
+            text-align: center;
+        }
+        .ritual-btn:hover {
+            background: var(--matrix-glow);
+            color: var(--matrix-bg);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 20px rgba(255, 138, 0, 0.3);
+        }
+        .ritual-btn.water-type {
+            border-color: var(--water-blue);
+            color: var(--water-blue);
+        }
+        .ritual-btn.water-type:hover {
+            background: var(--water-blue);
+            color: var(--matrix-bg);
+            box-shadow: 0 5px 20px rgba(0, 170, 255, 0.3);
+        }
+        .emoji { display: block; font-size: 3em; margin-bottom: 12px; }
+        .label { font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; }
+        .desc { font-size: 0.75em; color: #888; margin-top: 8px; display: block; }
+
+        /* --- THE WATER DRAWER SLIDING ENGINE --- */
+        .water-drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 998;
+        }
+        .water-drawer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 75vh;
+            background-color: var(--drawer-bg);
+            border-top: 3px solid var(--water-blue);
+            box-shadow: 0 -10px 40px rgba(0, 170, 255, 0.15);
+            transform: translateY(100%);
+            transition: transform 0.6s cubic-bezier(0.28, 0.11, 0.32, 1.02);
+            z-index: 999;
+            padding: 30px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        /* Active Drawer States */
+        body.drawer-open {
+            background-color: #02050a;
+        }
+        body.drawer-open .water-drawer-overlay {
+            opacity: 1;
+            visibility: visible;
+        }
+        body.drawer-open .water-drawer {
+            transform: translateY(0);
+        }
+
+        .drawer-blessing {
+            color: var(--water-blue);
+            font-size: 1.1em;
+            font-style: italic;
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px dashed rgba(0, 170, 255, 0.2);
+            padding-bottom: 15px;
+        }
+        .drawer-frame {
+            width: 100%;
+            height: calc(100% - 100px);
+            border: 1px solid rgba(0, 170, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+        }
+        .close-drawer-btn {
+            background: transparent;
+            color: #888;
+            border: 1px solid #444;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            display: block;
+            margin: 20px auto 0 auto;
+            transition: 0.2s;
+        }
+        .close-drawer-btn:hover {
+            border-color: var(--water-blue);
+            color: var(--water-blue);
+        }
+
+        /* Standard System Blocks */
+        .status-panel {
+            background: rgba(255, 138, 0, 0.05);
+            border: 1px solid var(--matrix-glow);
+            padding: 25px;
+            margin-top: 20px;
+        }
+        .status-header {
+            color: var(--matrix-glow);
+            font-size: 1.2em;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            border-bottom: 1px dashed var(--matrix-dim);
+            padding-bottom: 10px;
+        }
+        .status-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .status-item { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #222; }
+        .status-label { color: #aaa; }
+        .status-value { font-weight: bold; }
+        .status-value.online { color: #00ff66; }
+
+        .actions { margin-top: 25px; display: flex; gap: 10px; }
+        .action-btn {
+            background: transparent; color: #aaa; border: 1px solid #555;
+            padding: 15px; cursor: pointer; font-family: inherit; font-weight: bold; flex: 1;
+        }
+        .action-btn:hover { background: #555; color: var(--matrix-bg); border-color: var(--matrix-glow); }
+    </style>
+</head>
+<body>
+
+    <h1>📊 Control Panel Hub <span class="pulse">:: ONLINE</span></h1>
+
+    <div class="grid">
+        <button class="ritual-btn" onclick="openRitual('vision_quest.html')">
+            <span class="emoji">🔮</span>
+            <span class="label">Vision Quest</span>
+            <span class="desc">Daily oracle + bone prophecy</span>
+        </button>
+
+        <button class="ritual-btn" onclick="openRitual('bone_reader.html')">
+            <span class="emoji">🦴</span>
+            <span class="label">Bone Reader</span>
+            <span class="desc">Medicine man readings</span>
+        </button>
+
+        <button class="ritual-btn" onclick="openRitual('scripture_fetch.html')">
+            <span class="emoji">📖</span>
+            <span class="label">Scripture</span>
+            <span class="desc">Live Bible API fetch</span>
+        </button>
+
+        <button class="ritual-btn" onclick="openRitual('playlist_gen.html')">
+            <span class="emoji">🎵</span>
+            <span class="label">Playlist</span>
+            <span class="desc">Spotify mood matcher</span>
+        </button>
+
+        <button class="ritual-btn" onclick="openRitual('dashboard.html')">
+            <span class="emoji">🛰️</span>
+            <span class="label">Dashboard</span>
+            <span class="desc">System telemetry</span>
+        </button>
+
+        <button class="ritual-btn water-type" onclick="slideOpenWaterDrawer('cache_baptism.html')">
+            <span class="emoji">💧</span>
+            <span class="label">Water Drawer</span>
+            <span class="desc">Open wet purification sub-logic</span>
+        </button>
+    </div>
+
+    <div class="status-panel">
+        <div class="status-header">📊 System Status</div>
+        <div class="status-grid">
+            <div class="status-item"><span class="status-label">System State</span><span class="status-value online">● ONLINE</span></div>
+            <div class="status-item"><span class="status-label">CPU Usage</span><span class="status-value" id="cpu">12%</span></div>
+            <div class="status-item"><span class="status-label">Memory</span><span class="status-value">24.2 MB</span></div>
+            <div class="status-item"><span class="status-label">Water Drawer Core</span><span class="status-value" style="color: var(--water-blue);">BOUND</span></div>
+        </div>
+        <div class="actions">
+            <button class="action-btn" onclick="localStorage.clear(); alert('Buffers purged.');">🗑️ CLEAR BUFFERS</button>
+        </div>
+    </div>
+
+    <div class="water-drawer-overlay" onclick="closeWaterDrawer()"></div>
+    <div class="water-drawer" id="waterDrawer">
+        <div class="drawer-blessing">
+            💙 "May all things be rinsed. May all things be softened. May all things return to flow."
+        </div>
+        <iframe class="drawer-frame" id="drawerFrame" src="about:blank" frameBorder="0"></iframe>
+        <button class="close-drawer-btn" onclick="closeWaterDrawer()">Slide Drawer Shut</button>
+    </div>
+
+    <script>
+        function openRitual(url) {
+            if (window.innerWidth < 768) {
+                window.location.href = url;
+            } else {
+                window.open(url, '_blank');
+            }
+        }
+
+        // PHYSICAL WOOD MECHANICAL SIMULATION ENGINE
+        function slideOpenWaterDrawer(url) {
+            const iframe = document.getElementById('drawerFrame');
+            iframe.src = url; // Warmly hydrate the sub-ritual content
+            document.body.classList.add('drawer-open');
+        }
+
+        function closeWaterDrawer() {
+            document.body.classList.remove('drawer-open');
+            setTimeout(() => {
+                document.getElementById('drawerFrame').src = 'about:blank'; // Evaporate stale frames
+            }, 600); // Wait for the drawer sliding physics to finish
+        }
+
+        // Minor telemetry updates to keep the background hum alive
+        setInterval(() => {
+            document.getElementById('cpu').innerText = Math.floor(8 + Math.random() * 8) + '%';
+        }, 3000);
+    </script>
+</body>
+</html>

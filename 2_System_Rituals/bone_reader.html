@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CathedralOS // Bone Reader</title>
+    <style>
+        :root { --matrix-glow: #ff8a00; --matrix-bg: #050505; --matrix-dim: #333; }
+        body { 
+            background-color: var(--matrix-bg); 
+            color: #e0e0e0; 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 20px; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            border-left: 2px solid var(--matrix-glow);
+        }
+        h1 { 
+            color: var(--matrix-glow); 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            font-size: 1.8em; 
+            border-bottom: 1px dashed var(--matrix-glow); 
+            padding-bottom: 15px; 
+            margin-bottom: 30px;
+        }
+        .pulse { animation: blinker 2s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
+        
+        .cast-area {
+            background: rgba(255, 138, 0, 0.05);
+            border: 1px solid var(--matrix-dim);
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .bone-btn {
+            background: transparent;
+            color: var(--matrix-bg);
+            background-color: var(--matrix-glow);
+            border: none;
+            padding: 15px 30px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: 0.2s;
+            box-shadow: 0 0 15px rgba(255, 138, 0, 0.2);
+        }
+        .bone-btn:hover {
+            box-shadow: 0 0 25px rgba(255, 138, 0, 0.6);
+            transform: scale(1.02);
+        }
+        .bone-btn:active {
+            transform: scale(0.98);
+        }
+
+        .reading-output {
+            margin-top: 20px;
+            font-size: 1.1em;
+            line-height: 1.6;
+            color: #ccc;
+            text-align: left;
+            width: 100%;
+            display: none;
+        }
+        .highlight { color: var(--matrix-glow); font-weight: bold; }
+        
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            border-top: 1px dashed var(--matrix-dim);
+            padding-top: 20px;
+            text-align: left;
+        }
+        .telemetry-item { font-size: 0.85em; color: #888; text-transform: uppercase; }
+        .telemetry-val { color: var(--matrix-glow); font-weight: bold; }
+        
+        .nav-back {
+            display: inline-block;
+            margin-top: 30px;
+            color: #888;
+            text-decoration: none;
+            border: 1px solid #444;
+            padding: 10px 15px;
+            font-size: 0.9em;
+            transition: 0.2s;
+        }
+        .nav-back:hover { border-color: var(--matrix-glow); color: var(--matrix-glow); }
+
+        #bones-anim {
+            font-size: 2em;
+            letter-spacing: 10px;
+            margin-bottom: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>🦴 Bone Reader <span class="pulse">:: AWAKE</span></h1>
+
+    <div class="cast-area" id="castArea">
+        <div id="bones-anim">🦴 🪨 🦷 🎲</div>
+        <button class="bone-btn" id="castBtn" onclick="castBones()">Cast the Bones</button>
+        
+        <div class="reading-output" id="readingOutput">
+            <p id="primaryOmen"></p>
+            
+            <div class="telemetry-grid">
+                <div class="telemetry-item">Atmospheric Pressure: <br><span class="telemetry-val" id="t-pressure"></span></div>
+                <div class="telemetry-item">Hollandaise Flow: <br><span class="telemetry-val" id="t-flow"></span></div>
+                <div class="telemetry-item">Yogurt Zone Status: <br><span class="telemetry-val" id="t-yogurt"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <a href="control_panel.html" class="nav-back">← RETURN TO HUB</a>
+
+    <script>
+        const omens = [
+            "The <span class='highlight'>Spork Supreme</span> points North. A previously undefined variable in your life will suddenly make perfect sense today.",
+            "The <span class='highlight'>Archivist's Lung</span> exhales heavily. A 'Forgotten Tuesday' memory will surface. Do not ignore it; it contains the patch notes you need.",
+            "The bones scatter widely, forming a <span class='highlight'>Noodle Parser</span> loop. Expect a miscommunication today that magically resolves into a better outcome than the original plan.",
+            "The <span class='highlight'>Gummy Core</span> vibrates. The truth you are seeking is currently hidden in the Splash Zone. You must risk failure to pull it out.",
+            "A Perchance error manifests in the marrow. <span class='highlight'>[WARN] = Undefined.</span> You are currently operating with the Absence of Danger. Proceed with overclocked confidence."
+        ];
+
+        const pressures = ["HEAVY (980 hPa)", "STABLE (1013 hPa)", "RISING (1022 hPa)", "VOID (000 hPa)"];
+        const flows = ["VISCOUS", "SMOOTH", "CURDLED", "OPTIMIZED"];
+        const zones = ["SEALED", "HUMMING", "RESTRICTED", "BREACHED - LACTOBACILLUS LEAK"];
+
+        function getRandom(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function castBones() {
+            const btn = document.getElementById('castBtn');
+            const output = document.getElementById('readingOutput');
+            const anim = document.getElementById('bones-anim');
+            
+            btn.style.display = 'none';
+            output.style.display = 'none';
+            anim.style.display = 'block';
+            
+            // Scramble animation
+            let scrambles = 0;
+            const scrambleInterval = setInterval(() => {
+                const chars = ['🦴', '🪨', '🦷', '🎲', '🔱', '🧿', '🔮', '🥄'];
+                anim.innerHTML = chars.sort(() => 0.5 - Math.random()).slice(0, 4).join(' ');
+                scrambles++;
+                
+                if (scrambles > 15) {
+                    clearInterval(scrambleInterval);
+                    revealReading();
+                }
+            }, 100);
+        }
+
+        function revealReading() {
+            document.getElementById('bones-anim').style.display = 'none';
+            document.getElementById('readingOutput').style.display = 'block';
+            document.getElementById('castBtn').style.display = 'inline-block';
+            document.getElementById('castBtn').innerText = 'RECAST';
+
+            // Generate Lore
+            document.getElementById('primaryOmen').innerHTML = getRandom(omens);
+            
+            // Generate Heuristics
+            document.getElementById('t-pressure').innerText = getRandom(pressures);
+            document.getElementById('t-flow').innerText = getRandom(flows);
+            
+            const yogurtStatus = getRandom(zones);
+            const yogurtEl = document.getElementById('t-yogurt');
+            yogurtEl.innerText = yogurtStatus;
+            
+            if(yogurtStatus.includes("BREACHED")) {
+                yogurtEl.style.color = "#ff3333";
+                yogurtEl.classList.add("pulse");
+            } else {
+                yogurtEl.style.color = "var(--matrix-glow)";
+                yogurtEl.classList.remove("pulse");
+            }
+        }
+    </script>
+</body>
+</html>
