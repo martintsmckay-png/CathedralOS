@@ -15,9 +15,13 @@ export class ZoomEngine {
     // Hierarchical node bridge (SpatialNodeManager)
     this.nodeManager = spatialNodeManager || null;
 
-    // Camera state
+    // Camera state (Live Simulation Owned)
     this.currentState = { x: 0, y: 0, z: 4.0 };
     this.targetState = { x: 0, y: 0, z: 4.0 };
+
+    // ISOLATED: Replay state layers to prevent simulation plane corruption
+    this.replayFrame = null;
+    this.replayMode = false;
 
     // Animation tuning
     this.lerpFactor = 0.08;
@@ -94,11 +98,40 @@ export class ZoomEngine {
   }
 
   /**
+   * FIXED: State Layering Hook
+   * Isolates the playback snapshot instead of mutating runtime truth mid-frame
+   */
+  setReplayFrame(frame) {
+    this.replayFrame = frame;
+    if (frame && (frame.camera || frame.nodes)) {
+      this.replayMode = true;
+    } else {
+      this.replayMode = false;
+    }
+    this.render();
+  }
+
+  /**
+   * Restores regular simulation perspective rendering
+   */
+  clearReplayMode() {
+    this.replayMode = false;
+    this.replayFrame = null;
+    this.render();
+  }
+
+  /**
    * Full render pass
    */
   render() {
     const ctx = this.ctx;
-    const { x, y, z } = this.currentState;
+
+    // FIXED: Select render state source non-destructively
+    const renderCamera = (this.replayMode && this.replayFrame?.camera)
+      ? this.replayFrame.camera
+      : this.currentState;
+
+    const { x, y, z } = renderCamera;
 
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.save();
@@ -116,15 +149,19 @@ export class ZoomEngine {
 
     // Draw substrate grid beneath nodes
     if (this.fabricCanvas) {
-      this.fabricCanvas.drawInfiniteGrid(this.currentState);
+      this.fabricCanvas.drawInfiniteGrid(renderCamera);
     }
 
-    const visibleNodes = this.nodeManager
-      ? this.nodeManager.getVisibleNodes(z)
-      : [];
+    // FIXED: Render spatial nodes from the isolated replay history or live context
+    let visibleNodes = [];
+    if (this.replayMode && this.replayFrame?.nodes) {
+      visibleNodes = this.replayFrame.nodes;
+    } else if (this.nodeManager) {
+      visibleNodes = this.nodeManager.getVisibleNodes(z);
+    }
 
     for (const node of visibleNodes) {
-      this.drawNode(node, currentLOD);
+      this.drawNode(node, currentLOD, renderCamera);
     }
 
     ctx.restore();
@@ -133,22 +170,19 @@ export class ZoomEngine {
   /**
    * Node renderer for each semantic zoom layer
    */
-  drawNode(node, lod) {
-    const ctx = this.ctx;
-    const currentZ = this.currentState.z;
-
+  drawNode(node, lod, renderCamera) {
     if (lod === 'macro_summary' && node.level === 0) {
-      this.drawMacroNode(node, currentZ);
+      this.drawMacroNode(node, renderCamera.z);
       return;
     }
 
     if (lod === 'thematic_cluster' && node.level <= 1) {
-      this.drawThemeNode(node, currentZ);
+      this.drawThemeNode(node, renderCamera.z);
       return;
     }
 
     if (lod === 'raw_message') {
-      this.drawMessageNode(node, currentZ);
+      this.drawMessageNode(node, renderCamera.z);
     }
   }
 
@@ -254,14 +288,12 @@ export class ZoomEngine {
   drawRoundedRect(x, y, width, height, radius) {
     const ctx = this.ctx;
 
-    // If roundRect exists in the runtime, use it
     if (typeof ctx.roundRect === 'function') {
       ctx.beginPath();
       ctx.roundRect(x, y, width, height, radius);
       return;
     }
 
-    // Fallback path for older environments
     const r = Math.min(radius, width / 2, height / 2);
 
     ctx.beginPath();
@@ -292,3 +324,4 @@ export class ZoomEngine {
     return `${text.slice(0, maxLength - 3)}...`;
   }
 }
+

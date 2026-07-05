@@ -31,48 +31,29 @@ window.CATHEDRALCHRONICLEWEAVER      = new ChronicleWeaver(window.CATHEDRALMEMOR
 window.CATHEDRALCLUSTERDIPLOMACY     = new ClusterDiplomacy(spatializer);
 
 window.CATHEDRALWEATHERORACLE        = new SemanticWeatherOracle(
-    spatializer,
-    CATHEDRALDRIFTFORECAST,
-    CATHEDRALCLUSTERDIPLOMACY,
-    CATHEDRALCLUSTERDIALOGUE
+    spatializer, CATHEDRALDRIFTFORECAST, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALCLUSTERDIALOGUE
 );
-
 window.CATHEDRALPANTRYINDEX          = new PantryHyperIndex(window.CATHEDRALMEMORYPANTRY);
-
-window.CATHEDRALCLUSTERCONGRESS      = new ClusterCongress(
-    spatializer,
-    CATHEDRALCLUSTERDIPLOMACY,
-    CATHEDRALWEATHERORACLE
-);
-
+window.CATHEDRALCLUSTERCONGRESS      = new ClusterCongress(spatializer, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALWEATHERORACLE);
 window.CATHEDRALCLIMATECARTOGRAPHER  = new SemanticClimateCartographer(
-    spatializer,
-    CATHEDRALDRIFTFORECAST,
-    CATHEDRALCLUSTERDIPLOMACY,
-    CATHEDRALWEATHERORACLE
+    spatializer, CATHEDRALDRIFTFORECAST, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALWEATHERORACLE
 );
-
 window.CATHEDRALPANTRYCOMPRESSION_V2 = new PantryCompressionV2(
-    window.CATHEDRALMEMORYPANTRY,
-    window.CATHEDRALPANTRYINDEX,
-    window.CATHEDRALCLIMATECARTOGRAPHER,
-    window.CATHEDRALWEATHERORACLE
+    window.CATHEDRALMEMORYPANTRY, window.CATHEDRALPANTRYINDEX, window.CATHEDRALCLIMATECARTOGRAPHER, window.CATHEDRALWEATHERORACLE
 );
-
 window.CATHEDRALCLUSTERFESTIVAL      = new ClusterFestival(
-    spatializer,
-    CATHEDRALCLUSTERDIPLOMACY,
-    CATHEDRALWEATHERORACLE,
-    CATHEDRALCLIMATECARTOGRAPHER
+    spatializer, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALWEATHERORACLE, CATHEDRALCLIMATECARTOGRAPHER
 );
 
 // ==========================================
-// INDEPENDENT EVENT BUS BUS-HOOK INJECTION
+// INDEPENDENT EVENT BUS HOOK INJECTION
 // ==========================================
-// FIXED: Subscription moved outside the loop to prevent catastrophic memory leak.
+// RESOLVED: Wire the event bus directly to the isolated projection assignment layer
 cathedralBus.subscribe("replay.frame", (frame) => {
     if (window.replayController.isReplaying || timeKernel.mode === "replay") {
-        zoomEngine.applyReplayFrame(frame);
+        zoomEngine.setReplayFrame(frame);
+    } else {
+        zoomEngine.clearReplayMode();
     }
 });
 
@@ -80,7 +61,7 @@ cathedralBus.subscribe("replay.frame", (frame) => {
 // CENTRALIZED TICK PIPELINE (SYNCHRONIZED)
 // ==========================================
 setInterval(() => {
-    // Check global execution authority
+    // Note: The simulation plane can run continuously, but we hold ticks if the scheduler requests a pause
     if (!timeKernel.canSimulate() || window.replayController.isReplaying) return;
 
     const clusters = spatializer.buildClusters();
@@ -92,7 +73,6 @@ setInterval(() => {
 
     if (forecast) {
         cathedralBus.publish("drift.forecast.updated", forecast);
-
         CATHEDRALPANTRYWRITER.write(  
             "Drift Storm Forecast",  
             `[FORECAST]\nSeverity: ${forecast.severity}\nSlope: ${forecast.slope}`  
@@ -101,7 +81,6 @@ setInterval(() => {
         const shelter = CATHEDRALSTORMSHELTER.engage(forecast);  
         if (shelter) {  
             cathedralBus.publish("storm.shelter.engaged", shelter);  
-
             CATHEDRALPANTRYWRITER.write(  
                 "Storm Shelter Protocol",  
                 `[SHELTER]\nSeverity: ${shelter.severity}\nClusters Shielded: ${shelter.clusters}`  
@@ -114,14 +93,12 @@ setInterval(() => {
     // 2. Storylines
     clusters.forEach((cluster, index) => {
         spatializer.initStoryline(index);
-
         const driftPressure = cluster.reduce((acc, id) => {  
             const n = spatializer.getNode(id);  
             return acc + spatializer.getDriftPressure(n.x, n.y);  
         }, 0) / cluster.length;  
 
         spatializer.advanceStoryline(index, cluster, driftPressure);  
-
         const story = spatializer.clusterStorylines.get(index);  
 
         CATHEDRALPANTRYWRITER.write(  
@@ -130,32 +107,19 @@ setInterval(() => {
         );
     });
 
-    cathedralBus.publish("semantic.storylines.updated", {
-        storylines: spatializer.clusterStorylines
-    });
+    cathedralBus.publish("semantic.storylines.updated", { storylines: spatializer.clusterStorylines });
 
-    // 3. Dialogue
+    // 3. Dialogue & Diplomatic Exchange Loop
     const dialogues = CATHEDRALCLUSTERDIALOGUE.generateDialogue(clusters);
-
     if (dialogues.length > 0) {
         cathedralBus.publish("semantic.dialogue", { dialogues });
-
         dialogues.forEach(d => {  
             const storyA = spatializer.clusterStorylines.get(d.from);  
             const storyB = spatializer.clusterStorylines.get(d.to);  
-
             const driftPressure = d.tone === "urgent" ? 3.5 : d.tone === "concerned" ? 2.0 : 0.5;  
 
             CATHEDRALCLUSTERDIPLOMACY.initRelation(d.from, d.to);  
-
-            CATHEDRALCLUSTERDIPLOMACY.updateRelation(  
-                d.from,  
-                d.to,  
-                d.tone,  
-                driftPressure,  
-                storyA?.state,  
-                storyB?.state  
-            );  
+            CATHEDRALCLUSTERDIPLOMACY.updateRelation(d.from, d.to, d.tone, driftPressure, storyA?.state, storyB?.state);  
 
             CATHEDRALPANTRYWRITER.write(  
                 `Cluster Dialogue ${d.from + 1} → ${d.to + 1}`,  
@@ -164,9 +128,7 @@ setInterval(() => {
         });
     }
 
-    cathedralBus.publish("cluster.diplomacy.updated", {
-        relations: CATHEDRALCLUSTERDIPLOMACY.relations
-    });
+    cathedralBus.publish("cluster.diplomacy.updated", { relations: CATHEDRALCLUSTERDIPLOMACY.relations });
 
     // ==================================
     // REPLAY FRAME CAPTURE LAYER
@@ -179,20 +141,16 @@ setInterval(() => {
 }, 2500);
 
 // ==========================================
-// MACRO CYCLES
+// MACRO CYCLES (4000ms)
 // ==========================================
 setInterval(() => {
     if (!timeKernel.canSimulate()) return;
 
     CATHEDRALPANTRYINDEX.rebuild();
-
-    cathedralBus.publish("pantry.index.updated", {
-        summary: CATHEDRALPANTRYINDEX.summarize()
-    });
+    cathedralBus.publish("pantry.index.updated", { summary: CATHEDRALPANTRYINDEX.summarize() });
 
     if (CATHEDRALCHRONICLEWEAVER.shouldWeave()) {
         const chapter = CATHEDRALCHRONICLEWEAVER.weave();
-
         if (chapter) {  
             CATHEDRALPANTRYWRITER.write("Cathedral Chronicle", chapter);  
             cathedralBus.publish("pantry.chronicle.created", { chapter });  
@@ -201,7 +159,7 @@ setInterval(() => {
 }, 4000);
 
 // ==========================================
-// HIGH LEVEL CYCLES
+// HIGH LEVEL CYCLES (6000ms)
 // ==========================================
 setInterval(() => {
     if (!timeKernel.canSimulate()) return;
@@ -214,29 +172,17 @@ setInterval(() => {
 
     const session = CATHEDRALCLUSTERCONGRESS.convene();
     cathedralBus.publish("cluster.congress.session", session);
-
-    // FIXED: Wrapped template literals correctly
-    CATHEDRALPANTRYWRITER.write(
-        "Cluster Ritual Congress",
-        `[CONGRESS]\nDecrees:\n${session.decrees.join("\n")}`
-    );
+    CATHEDRALPANTRYWRITER.write("Cluster Ritual Congress", `[CONGRESS]\nDecrees:\n${session.decrees.join("\n")}`);
 
     const map = CATHEDRALCLIMATECARTOGRAPHER.buildClimateMap();
     const layers = CATHEDRALCLIMATECARTOGRAPHER.synthesizeLayer(map);
 
     cathedralBus.publish("climate.map.updated", { layers });
-
-    // FIXED: Wrapped template literals correctly
-    CATHEDRALPANTRYWRITER.write(
-        "Semantic Climate Map",
-        `[CLIMATE]\n${layers.map(l => `Cluster ${l.cluster + 1} → ${l.biome}`).join("\n")}`
-    );
+    CATHEDRALPANTRYWRITER.write("Semantic Climate Map", `[CLIMATE]\n${layers.map(l => `Cluster ${l.cluster + 1} → ${l.biome}`).join("\n")}`);
 
     const events = CATHEDRALCLUSTERFESTIVAL.evaluateFestivalTriggers();
-
     events.forEach(event => {
         const festivalText = CATHEDRALCLUSTERFESTIVAL.generateFestival(event);
-
         if (festivalText) {  
             cathedralBus.publish("cluster.festival", { text: festivalText });  
             CATHEDRALPANTRYWRITER.write("Cluster Festival", `[FESTIVAL]\n${festivalText}`);  
@@ -245,7 +191,6 @@ setInterval(() => {
 
     if (CATHEDRALPANTRYCOMPRESSION_V2.shouldCompress()) {
         const crystal = CATHEDRALPANTRYCOMPRESSION_V2.compress();
-
         if (crystal) {  
             CATHEDRALPANTRYWRITER.write("Memory Crystal", crystal);  
             cathedralBus.publish("pantry.crystal.created", { crystal });  
