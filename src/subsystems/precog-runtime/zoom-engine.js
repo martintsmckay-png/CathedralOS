@@ -309,6 +309,7 @@ export class ZoomEngine {
     ctx.closePath();
   }
 
+
   /**
    * Prevent labels from blowing out node bounds
    */
@@ -324,4 +325,27 @@ export class ZoomEngine {
     return `${text.slice(0, maxLength - 3)}...`;
   }
 }
+
+  /**
+   * FIXED: State Layering Hook
+   * Isolates the playback snapshot instead of mutating runtime truth mid-frame
+   */
+  setReplayFrame(frame) {
+    this.replayFrame = frame;
+    if (frame && (frame.camera || frame.nodes)) {
+      this.replayMode = true;
+    } else {
+      this.replayMode = false;
+    }
+    this.render();
+  }
+
+  /**
+   * Restores regular simulation perspective rendering
+   */
+  clearReplayMode() {
+    this.replayMode = false;
+    this.replayFrame = null;
+    this.render();
+  }
 
