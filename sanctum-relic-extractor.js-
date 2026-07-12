@@ -1,0 +1,29 @@
+// src/subsystems/root-key-sanctum/sanctum-relic-extractor.js
+
+export function extractRelicCommands(parsed) {
+  const text = parsed.rawText || "";
+
+  // Extract blocks encased inside markdown markdown fences
+  const jsSnippets = [...text.matchAll(/```(?:js|javascript)\n([\s\S]*?)```/gi)].map(m => m[1].trim());
+  const htmlSnippets = [...text.matchAll(/```html\n([\s\S]*?)```/gi)].map(m => m[1].trim());
+
+  // Filter line by line for terminal prompts
+  const shellCommands = text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => 
+      line.startsWith('$ ') || 
+      line.startsWith('> ') ||
+      /^node\s+/.test(line) ||
+      /^npm\s+/.test(line) ||
+      /^mkdir\s+/.test(line) ||
+      /^nano\s+/.test(line)
+    );
+
+  return {
+    jsSnippets,
+    htmlSnippets,
+    shellCommands
+  };
+}
+

@@ -1,3 +1,4 @@
+import { cathedralBus } from "../../system/core-bus.js";
 // src/subsystems/precog-runtime/spatial-node-manager.js
 // CathedralOS Native Module — Fractal Memory Spatialize Bridge
 
@@ -48,7 +49,12 @@ export class SpatialNodeManager {
    * { id, level, summary, content, title, parentId, lastMessageSummarizedId }
    */
   populateFromHierarchy(blocks = []) {
-    this.clear();
+this.clear();
+
+cathedralBus.publish("spatial.rebuild.start", {
+  count: blocks?.length ?? 0,
+  source: "populateFromHierarchy"
+});
 
     if (!Array.isArray(blocks) || blocks.length === 0) {
       return this.nodes;
@@ -107,6 +113,10 @@ export class SpatialNodeManager {
         this.nodeIndex.set(node.id, node);
       });
     }
+cathedralBus.publish("spatial.rebuild.complete", {
+  nodeCount: this.nodes.length,
+  source: "populateFromHierarchy"
+});
 
     return this.nodes;
   }

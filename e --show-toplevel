@@ -1,0 +1,213 @@
+[1mdiff --git a/src/subsystems/precog-runtime/precog-orchestrator.js b/src/subsystems/precog-runtime/precog-orchestrator.js[m
+[1mindex a97eb868..22bdb4bd 100644[m
+[1m--- a/src/subsystems/precog-runtime/precog-orchestrator.js[m
+[1m+++ b/src/subsystems/precog-runtime/precog-orchestrator.js[m
+[36m@@ -1,5 +1,4 @@[m
+ // src/subsystems/precog-runtime/precog-orchestrator.js[m
+[31m-// CathedralOS Native Module — Core Runtime Lifecycle Orchestrator (Path 1 Stable)[m
+ [m
+ import { PrecogEngine } from './precog-engine.js';[m
+ import { ZoomEngine } from './zoom-engine.js';[m
+[36m@@ -7,10 +6,26 @@[m [mimport { FabricCanvasSetup } from './fabric-canvas-setup.js';[m
+ import { SpatialNodeManager } from './spatial-node-manager.js';[m
+ [m
+ export class PrecogRuntimeOrchestrator {[m
+[31m-  constructor({ canvasId = 'precog-canvas', bus = null, historyLimit = 100 } = {}) {[m
+[32m+[m[32m  constructor({[m
+[32m+[m[32m    canvasId = 'precog-canvas',[m
+[32m+[m[32m    bus = null,[m
+[32m+[m[32m    historyLimit = 100,[m
+[32m+[m[32m    logger = console,[m
+[32m+[m[32m    canvasFactory = (id) => new FabricCanvasSetup(id),[m
+[32m+[m[32m    spatialFactory = () => new SpatialNodeManager(),[m
+[32m+[m[32m    zoomFactory = ({ canvas, canvasSetup, spatialManager }) =>[m
+[32m+[m[32m      new ZoomEngine(canvas, canvasSetup, spatialManager),[m
+[32m+[m[32m    engineFactory = (opts) => new PrecogEngine(opts)[m
+[32m+[m[32m  } = {}) {[m
+     this.canvasId = canvasId;[m
+     this.bus = bus;[m
+     this.historyLimit = historyLimit;[m
+[32m+[m[32m    this.logger = logger;[m
+[32m+[m
+[32m+[m[32m    this.canvasFactory = canvasFactory;[m
+[32m+[m[32m    this.spatialFactory = spatialFactory;[m
+[32m+[m[32m    this.zoomFactory = zoomFactory;[m
+[32m+[m[32m    this.engineFactory = engineFactory;[m
+ [m
+     this.canvasSetup = null;[m
+     this.spatialManager = null;[m
+[36m@@ -18,79 +33,123 @@[m [mexport class PrecogRuntimeOrchestrator {[m
+     this.precogEngine = null;[m
+ [m
+     this.initialized = false;[m
+[32m+[m[32m    this.running = false;[m
+[32m+[m[32m    this.renderQueued = false;[m
+[32m+[m[32m    this.disposers = [];[m
+   }[m
+ [m
+[31m-  /**[m
+[31m-   * Initializes stack to use the plain 2D context pipeline natively[m
+[31m-   */[m
+   initialize() {[m
+[31m-    if (this.initialized) return;[m
+[32m+[m[32m    if (this.initialized) return this;[m
+ [m
+[31m-    try {[m
+[31m-      console.log('[ORCHESTRATOR] :: Instantiating Path 1 Canvas Pipeline...');[m
+[32m+[m[32m    this.logger.info('[ORCHESTRATOR] initializing runtime');[m
+ [m
+[31m-      // 1. Core DOM Canvas Layer Wrapper[m
+[31m-      this.canvasSetup = new FabricCanvasSetup(this.canvasId);[m
+[32m+[m[32m    this.canvasSetup = this.canvasFactory(this.canvasId);[m
+[32m+[m[32m    this.spatialManager = this.spatialFactory();[m
+[32m+[m[32m    this.zoomEngine = this.zoomFactory({[m
+[32m+[m[32m      canvas: this.canvasSetup.canvas,[m
+[32m+[m[32m      canvasSetup: this.canvasSetup,[m
+[32m+[m[32m      spatialManager: this.spatialManager[m
+[32m+[m[32m    });[m
+ [m
+[31m-      // 2. Memory Topology Coordinate Manager[m
+[31m-      this.spatialManager = new SpatialNodeManager();[m
+[32m+[m[32m    if (typeof this.canvasSetup.attachZoomEngine === 'function') {[m
+[32m+[m[32m      this.canvasSetup.attachZoomEngine(this.zoomEngine);[m
+[32m+[m[32m    }[m
+ [m
+[31m-      // 3. Path 1 Connection: Inject canvas setup and the spatial manager directly[m
+[31m-      this.zoomEngine = new ZoomEngine([m
+[31m-        this.canvasSetup.canvas,[m
+[31m-        this.canvasSetup,[m
+[31m-        this.spatialManager[m
+[31m-      );[m
+[32m+[m[32m    this.precogEngine = this.engineFactory({[m
+[32m+[m[32m      bus: this.bus,[m
+[32m+[m[32m      historyLimit: this.historyLimit,[m
+[32m+[m[32m      onLedgerFragment: (msg, source) => this.logSystem(msg, source)[m
+[32m+[m[32m    });[m
+ [m
+[31m-      // 4. Bind the zoom matrix back to layout click/drag managers[m
+[31m-      this.canvasSetup.attachZoomEngine(this.zoomEngine);[m
+[32m+[m[32m    this.initialized = true;[m
+[32m+[m[32m    this.publishLifecycle('runtime:initialized');[m
+[32m+[m[32m    return this;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  start() {[m
+[32m+[m[32m    if (!this.initialized) this.initialize();[m
+[32m+[m[32m    if (this.running) return this;[m
+[32m+[m
+[32m+[m[32m    this.precogEngine?.start();[m
+[32m+[m[32m    this.running = true;[m
+[32m+[m[32m    this.requestRender('runtime:start');[m
+[32m+[m[32m    this.publishLifecycle('runtime:started');[m
+[32m+[m
+[32m+[m[32m    return this;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  stop() {[m
+[32m+[m[32m    if (!this.running) return this;[m
+[32m+[m
+[32m+[m[32m    this.precogEngine?.stop();[m
+[32m+[m[32m    this.running = false;[m
+[32m+[m[32m    this.publishLifecycle('runtime:stopped');[m
+[32m+[m
+[32m+[m[32m    return this;[m
+[32m+[m[32m  }[m
+ [m
+[31m-      // 5. Initialize telemetry ingestion[m
+[31m-      this.precogEngine = new PrecogEngine({[m
+[31m-        bus: this.bus,[m
+[31m-        historyLimit: this.historyLimit,[m
+[31m-        onLedgerFragment: (msg, source) => this.handleSystemLog(msg, source)[m
+[31m-      });[m
+[31m-[m
+[31m-      this.initialized = true;[m
+[31m-      console.log('[ORCHESTRATOR] :: Pipeline closed. Grid engine synced to native 2D canvas.');[m
+[31m-    } catch (error) {[m
+[31m-      console.error(`[ORCHESTRATOR] :: Bootstrap aborted on hard fault: ${error.message}`);[m
+[31m-      throw error;[m
+[32m+[m[32m  destroy() {[m
+[32m+[m[32m    this.stop();[m
+[32m+[m
+[32m+[m[32m    for (const dispose of this.disposers) {[m
+[32m+[m[32m      try { dispose(); } catch (err) {[m
+[32m+[m[32m        this.logger.error('[ORCHESTRATOR] dispose failed', err);[m
+[32m+[m[32m      }[m
+     }[m
+[32m+[m[32m    this.disposers = [];[m
+[32m+[m
+[32m+[m[32m    this.zoomEngine?.destroy?.();[m
+[32m+[m[32m    this.canvasSetup?.destroy?.();[m
+[32m+[m[32m    this.spatialManager?.destroy?.();[m
+[32m+[m[32m    this.precogEngine?.destroy?.();[m
+[32m+[m
+[32m+[m[32m    this.canvasSetup = null;[m
+[32m+[m[32m    this.spatialManager = null;[m
+[32m+[m[32m    this.zoomEngine = null;[m
+[32m+[m[32m    this.precogEngine = null;[m
+[32m+[m
+[32m+[m[32m    this.initialized = false;[m
+[32m+[m[32m    this.publishLifecycle('runtime:destroyed');[m
+[32m+[m[32m    return this;[m
+   }[m
+ [m
+[31m-  /**[m
+[31m-   * Feeds raw data objects into the spatial matrix and re-renders the 2D surface[m
+[31m-   */[m
+   loadTopology(dynamicMemoryBlocks = []) {[m
+     if (!this.spatialManager) {[m
+[31m-      throw new Error('[ORCHESTRATOR] :: Cannot populate topology before stack init.');[m
+[32m+[m[32m      throw new Error('[ORCHESTRATOR] cannot load topology before initialize()');[m
+     }[m
+ [m
+[31m-    const projectedNodes = this.spatialManager.populateFromHierarchy(dynamicMemoryBlocks);[m
+[31m-    console.log(`[ORCHESTRATOR] :: Spatial bridge updated: ${projectedNodes.length} nodes layout compiled.`);[m
+[32m+[m[32m    const projectedNodes =[m
+[32m+[m[32m      this.spatialManager.populateFromHierarchy(dynamicMemoryBlocks);[m
+ [m
+[31m-    // Trigger explicit canvas draw pass on raw ctx matrix[m
+[31m-    if (this.zoomEngine) {[m
+[31m-      this.zoomEngine.render();[m
+[31m-    }[m
+[32m+[m[32m    this.logger.info([m
+[32m+[m[32m      `[ORCHESTRATOR] topology loaded (${projectedNodes.length} nodes)`[m
+[32m+[m[32m    );[m
+[32m+[m
+[32m+[m[32m    this.requestRender('topology:loaded');[m
+[32m+[m[32m    return projectedNodes;[m
+   }[m
+ [m
+[31m-  start() {[m
+[31m-    if (!this.initialized) this.initialize();[m
+[31m-    if (this.precogEngine) this.precogEngine.start();[m
+[31m-    if (this.zoomEngine) this.zoomEngine.render();[m
+[32m+[m[32m  requestRender(reason = 'unknown') {[m
+[32m+[m[32m    if (!this.zoomEngine || this.renderQueued) return;[m
+[32m+[m
+[32m+[m[32m    this.renderQueued = true;[m
+[32m+[m[32m    requestAnimationFrame(() => {[m
+[32m+[m[32m      this.renderQueued = false;[m
+[32m+[m[32m      this.zoomEngine?.render?.();[m
+[32m+[m[32m      this.publishLifecycle('runtime:rendered', { reason });[m
+[32m+[m[32m    });[m
+   }[m
+ [m
+[31m-  stop() {[m
+[31m-    if (this.precogEngine) this.precogEngine.stop();[m
+[31m-    console.log('[ORCHESTRATOR] :: Pipeline telemetry paused.');[m
+[32m+[m[32m  publishLifecycle(type, extra = {}) {[m
+[32m+[m[32m    this.bus?.publish?.(type, {[m
+[32m+[m[32m      canvasId: this.canvasId,[m
+[32m+[m[32m      initialized: this.initialized,[m
+[32m+[m[32m      running: this.running,[m
+[32m+[m[32m      ...extra[m
+[32m+[m[32m    });[m
+   }[m
+ [m
+[31m-  handleSystemLog(message, source) {[m
+[31m-    const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);[m
+[31m-    console.log(`[${timestamp}][${source}] :: ${message}`);[m
+[32m+[m[32m  logSystem(message, source = 'runtime') {[m
+[32m+[m[32m    this.logger.info(`[${source}] ${message}`);[m
+   }[m
+ }[m
+[31m-[m

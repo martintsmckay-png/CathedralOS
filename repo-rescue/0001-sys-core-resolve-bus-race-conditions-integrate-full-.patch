@@ -1,0 +1,193 @@
+From a0a159b6ef77b5a03542261028f50a887e8db213 Mon Sep 17 00:00:00 2001
+From: Martin McKay <martintsmckay@gmail.com>
+Date: Sat, 4 Jul 2026 17:53:57 -0500
+Subject: [PATCH 1/4] sys(core): resolve bus race conditions, integrate full
+ architectural matrix, fix keydown HUD conflict
+
+---
+ src/main.js | 173 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 173 insertions(+)
+ create mode 100644 src/main.js
+
+diff --git a/src/main.js b/src/main.js
+new file mode 100644
+index 00000000..4da8543b
+--- /dev/null
++++ b/src/main.js
+@@ -0,0 +1,173 @@
++// ==========================================
++// CATHEDRALOS ENGINE INITIALIZATION PRESET
++// ==========================================
++
++import { DriftForecast } from "./system/drift-forecast.js";
++import { PantrySearch } from "./system/pantry-search.js";
++import { ClusterDialogue } from "./system/cluster-dialogue.js";
++import { StormShelter } from "./system/storm-shelter.js";
++import { ChronicleWeaver } from "./system/pantry-chronicle-weaver.js";
++import { ClusterDiplomacy } from "./system/cluster-diplomacy.js";
++import { SemanticWeatherOracle } from "./system/semantic-weather-oracle.js";
++import { PantryHyperIndex } from "./system/pantry-hyper-index.js";
++import { ClusterCongress } from "./system/cluster-congress.js";
++import { SemanticClimateCartographer } from "./system/semantic-climate-cartographer.js";
++import { PantryCompressionV2 } from "./system/pantry-compression-v2.js";
++import { ClusterFestival } from "./system/cluster-festival.js";
++
++// Global Component Mapping
++window.CATHEDRALDRIFTFORECAST        = new DriftForecast(spatializer, zoomEngine.driftContours);
++window.CATHEDRALPANTRYSEARCH         = new PantrySearch(window.CATHEDRALMEMORYPANTRY);
++window.CATHEDRALCLUSTERDIALOGUE      = new ClusterDialogue(spatializer);
++window.CATHEDRALSTORMSHELTER         = new StormShelter(spatializer);
++window.CATHEDRALCHRONICLEWEAVER      = new ChronicleWeaver(window.CATHEDRALMEMORYPANTRY);
++window.CATHEDRALCLUSTERDIPLOMACY     = new ClusterDiplomacy(spatializer);
++window.CATHEDRALWEATHERORACLE        = new SemanticWeatherOracle(
++    spatializer, CATHEDRALDRIFTFORECAST, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALCLUSTERDIALOGUE
++);
++window.CATHEDRALPANTRYINDEX          = new PantryHyperIndex(window.CATHEDRALMEMORYPANTRY);
++window.CATHEDRALCLUSTERCONGRESS      = new ClusterCongress(spatializer, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALWEATHERORACLE);
++window.CATHEDRALCLIMATECARTOGRAPHER  = new SemanticClimateCartographer(
++    spatializer, CATHEDRALDRIFTFORECAST, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALWEATHERORACLE
++);
++window.CATHEDRALPANTRYCOMPRESSION_V2 = new PantryCompressionV2(
++    window.CATHEDRALMEMORYPANTRY, window.CATHEDRALPANTRYINDEX, window.CATHEDRALCLIMATECARTOGRAPHER, window.CATHEDRALWEATHERORACLE
++);
++window.CATHEDRALCLUSTERFESTIVAL      = new ClusterFestival(
++    spatializer, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALWEATHERORACLE, CATHEDRALCLIMATECARTOGRAPHER
++);
++
++// ==========================================
++// CENTRALIZED TICK PIPELINE (Synchronized)
++// ==========================================
++
++setInterval(() => {
++    const clusters = spatializer.buildClusters();
++    const contours = zoomEngine.driftContours.buildContours();
++    
++    // 1. Meteorological Snapshot Loop
++    CATHEDRALDRIFTFORECAST.recordSnapshot(contours);
++    const forecast = CATHEDRALDRIFTFORECAST.predictStorm();
++    
++    if (forecast) {
++        precogBus.publish("drift.forecast.updated", forecast);
++        CATHEDRALPANTRYWRITER.write(
++            "Drift Storm Forecast",
++            `[FORECAST]\nSeverity: ${forecast.severity}\nSlope: ${forecast.slope}`
++        );
++
++        // Auto-Engage Shields if needed
++        const shelter = CATHEDRALSTORMSHELTER.engage(forecast);
++        if (shelter) {
++            precogBus.publish("storm.shelter.engaged", shelter);
++            CATHEDRALPANTRYWRITER.write(
++                "Storm Shelter Protocol",
++                `[SHELTER]\nSeverity: ${shelter.severity}\nClusters Shielded: ${shelter.clusters}`
++            );
++        }
++    }
++    precogBus.publish("drift.contours.updated", { contours });
++
++    // 2. Storyline & Messaging Updates
++    clusters.forEach((cluster, index) => {
++        spatializer.initStoryline(index);
++        const driftPressure = cluster.reduce((acc, id) => {
++            const n = spatializer.getNode(id);
++            return acc + spatializer.getDriftPressure(n.x, n.y);
++        }, 0) / cluster.length;
++
++        spatializer.advanceStoryline(index, cluster, driftPressure);
++
++        CATHEDRALPANTRYWRITER.write(
++            `Cluster Storyline ${index + 1}`,
++            `[NARRATIVE]\nState: ${spatializer.clusterStorylines.get(index).state}\nEvents:\n` +
++            spatializer.clusterStorylines.get(index).history.join("\n")
++        );
++    });
++    precogBus.publish("semantic.storylines.updated", { storylines: spatializer.clusterStorylines });
++
++    // 3. Dialogue & Diplomatic Exchange Loop
++    const dialogues = CATHEDRALCLUSTERDIALOGUE.generateDialogue(clusters);
++    if (dialogues.length > 0) {
++        precogBus.publish("semantic.dialogue", { dialogues });
++        dialogues.forEach(d => {
++            const storyA = spatializer.clusterStorylines.get(d.from);
++            const storyB = spatializer.clusterStorylines.get(d.to);
++            const driftPressure = (d.tone === "urgent") ? 3.5 : (d.tone === "concerned") ? 2.0 : 0.5;
++
++            CATHEDRALCLUSTERDIPLOMACY.initRelation(d.from, d.to);
++            CATHEDRALCLUSTERDIPLOMACY.updateRelation(d.from, d.to, d.tone, driftPressure, storyA?.state, storyB?.state);
++            
++            CATHEDRALPANTRYWRITER.write(
++                `Cluster Dialogue ${d.from + 1} → ${d.to + 1}`,
++                `[DIALOGUE]\nTone: ${d.tone}\nMessage: ${d.message}`
++            );
++        });
++    }
++    precogBus.publish("cluster.diplomacy.updated", { relations: CATHEDRALCLUSTERDIPLOMACY.relations });
++    CATHEDRALCLUSTERDIPLOMACY.relations.forEach((rel, key) => {
++        CATHEDRALPANTRYWRITER.write(`Cluster Diplomacy ${key}`, `[DIPLOMACY]\nRelation: ${rel.relation}\nScore: ${rel.score}`);
++    });
++
++}, 2500);
++
++// ==========================================
++// SLOWER MACRO-COGNITIVE CYCLES
++// ==========================================
++
++// Historical Weaving & Index Maintenance
++setInterval(() => {
++    CATHEDRALPANTRYINDEX.rebuild();
++    precogBus.publish("pantry.index.updated", { summary: CATHEDRALPANTRYINDEX.summarize() });
++
++    if (CATHEDRALCHRONICLEWEAVER.shouldWeave()) {
++        const chapter = CATHEDRALCHRONICLEWEAVER.weave();
++        if (chapter) {
++            CATHEDRALPANTRYWRITER.write("Cathedral Chronicle", chapter);
++            precogBus.publish("pantry.chronicle.created", { chapter });
++        }
++    }
++}, 4000);
++
++// High Prophecy, Cartography, Congress, and Compression Layers
++setInterval(() => {
++    // Forecast Omens
++    const omen = CATHEDRALWEATHERORACLE.readOmens();
++    const prophecy = CATHEDRALWEATHERORACLE.synthesizeProphecy(omen);
++    precogBus.publish("oracle.prophecy", { prophecy });
++    CATHEDRALPANTRYWRITER.write("Semantic Weather Prophecy", prophecy);
++
++    // Congressional Assembly
++    const session = CATHEDRALCLUSTERCONGRESS.convene();
++    precogBus.publish("cluster.congress.session", session);
++    CATHEDRALPANTRYWRITER.write(
++        "Cluster Ritual Congress",
++        `[CONGRESS]\nDecrees:\n${session.decrees.join("\n")}`
++    );
++
++    // Cartographic Atlas Mapping
++    const map = CATHEDRALCLIMATECARTOGRAPHER.buildClimateMap();
++    const layers = CATHEDRALCLIMATECARTOGRAPHER.synthesizeLayer(map);
++    precogBus.publish("climate.map.updated", { layers });
++    CATHEDRALPANTRYWRITER.write("Semantic Climate Map", `[CLIMATE]\n${layers.map(l => `Cluster ${l.cluster + 1} → ${l.biome}`).join("\n")}`);
++
++    // Cultural Celebrations
++    const events = CATHEDRALCLUSTERFESTIVAL.evaluateFestivalTriggers();
++    events.forEach(event => {
++        const festivalText = CATHEDRALCLUSTERFESTIVAL.generateFestival(event);
++        if (festivalText) {
++            precogBus.publish("cluster.festival", { text: festivalText });
++            CATHEDRALPANTRYWRITER.write("Cluster Festival", `[FESTIVAL]\n${festivalText}`);
++        }
++    });
++
++    // Final Structural Crystallization
++    if (CATHEDRALPANTRYCOMPRESSION_V2.shouldCompress()) {
++        const crystal = CATHEDRALPANTRYCOMPRESSION_V2.compress();
++        if (crystal) {
++            CATHEDRALPANTRYWRITER.write("Memory Crystal", crystal);
++            precogBus.publish("pantry.crystal.created", { crystal });
++        }
++    }
++}, 6000);
++
+-- 
+2.54.0
+

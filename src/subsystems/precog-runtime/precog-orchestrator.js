@@ -1,16 +1,31 @@
 // src/subsystems/precog-runtime/precog-orchestrator.js
-// CathedralOS Native Module — Core Runtime Lifecycle Orchestrator (Path 1 Stable)
 
-import { PrecogEngine } from './precog-engine.js';
-import { ZoomEngine } from './zoom-engine.js';
-import { FabricCanvasSetup } from './fabric-canvas-setup.js';
-import { SpatialNodeManager } from './spatial-node-manager.js';
+const { PrecogEngine } = require('./precog-engine.js');
+const ZoomEngine = require('./zoom-engine.js');
+const { FabricCanvasSetup } = require('./fabric-canvas-setup.js');
+const { SpatialNodeManager } = require('./spatial-node-manager.js');
 
-export class PrecogRuntimeOrchestrator {
-  constructor({ canvasId = 'precog-canvas', bus = null, historyLimit = 100 } = {}) {
+class PrecogRuntimeOrchestrator {
+  constructor({
+    canvasId = 'precog-canvas',
+    bus = null,
+    historyLimit = 100,
+    logger = console,
+    canvasFactory = (id) => new FabricCanvasSetup(id),
+    spatialFactory = () => new SpatialNodeManager(),
+    zoomFactory = ({ canvas, canvasSetup, spatialManager }) =>
+      new ZoomEngine(canvas, canvasSetup, spatialManager),
+    engineFactory = (opts) => new PrecogEngine(opts)
+  } = {}) {
     this.canvasId = canvasId;
     this.bus = bus;
     this.historyLimit = historyLimit;
+    this.logger = logger;
+
+    this.canvasFactory = canvasFactory;
+    this.spatialFactory = spatialFactory;
+    this.zoomFactory = zoomFactory;
+    this.engineFactory = engineFactory;
 
     this.canvasSetup = null;
     this.spatialManager = null;
@@ -18,79 +33,125 @@ export class PrecogRuntimeOrchestrator {
     this.precogEngine = null;
 
     this.initialized = false;
+    this.running = false;
+    this.renderQueued = false;
+    this.disposers = [];
   }
 
-  /**
-   * Initializes stack to use the plain 2D context pipeline natively
-   */
   initialize() {
-    if (this.initialized) return;
+    if (this.initialized) return this;
 
-    try {
-      console.log('[ORCHESTRATOR] :: Instantiating Path 1 Canvas Pipeline...');
+    this.logger.info('[ORCHESTRATOR] initializing runtime');
 
-      // 1. Core DOM Canvas Layer Wrapper
-      this.canvasSetup = new FabricCanvasSetup(this.canvasId);
+    this.canvasSetup = this.canvasFactory(this.canvasId);
+    this.spatialManager = this.spatialFactory();
+    this.zoomEngine = this.zoomFactory({
+      canvas: this.canvasSetup.canvas,
+      canvasSetup: this.canvasSetup,
+      spatialManager: this.spatialManager
+    });
 
-      // 2. Memory Topology Coordinate Manager
-      this.spatialManager = new SpatialNodeManager();
-
-      // 3. Path 1 Connection: Inject canvas setup and the spatial manager directly
-      this.zoomEngine = new ZoomEngine(
-        this.canvasSetup.canvas,
-        this.canvasSetup,
-        this.spatialManager
-      );
-
-      // 4. Bind the zoom matrix back to layout click/drag managers
+    if (typeof this.canvasSetup.attachZoomEngine === 'function') {
       this.canvasSetup.attachZoomEngine(this.zoomEngine);
-
-      // 5. Initialize telemetry ingestion
-      this.precogEngine = new PrecogEngine({
-        bus: this.bus,
-        historyLimit: this.historyLimit,
-        onLedgerFragment: (msg, source) => this.handleSystemLog(msg, source)
-      });
-
-      this.initialized = true;
-      console.log('[ORCHESTRATOR] :: Pipeline closed. Grid engine synced to native 2D canvas.');
-    } catch (error) {
-      console.error(`[ORCHESTRATOR] :: Bootstrap aborted on hard fault: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Feeds raw data objects into the spatial matrix and re-renders the 2D surface
-   */
-  loadTopology(dynamicMemoryBlocks = []) {
-    if (!this.spatialManager) {
-      throw new Error('[ORCHESTRATOR] :: Cannot populate topology before stack init.');
     }
 
-    const projectedNodes = this.spatialManager.populateFromHierarchy(dynamicMemoryBlocks);
-    console.log(`[ORCHESTRATOR] :: Spatial bridge updated: ${projectedNodes.length} nodes layout compiled.`);
+    this.precogEngine = this.engineFactory({
+      bus: this.bus,
+      historyLimit: this.historyLimit,
+      onLedgerFragment: (msg, source) => this.logSystem(msg, source)
+    });
 
-    // Trigger explicit canvas draw pass on raw ctx matrix
-    if (this.zoomEngine) {
-      this.zoomEngine.render();
-    }
+    this.initialized = true;
+    this.publishLifecycle('runtime:initialized');
+    return this;
   }
 
   start() {
     if (!this.initialized) this.initialize();
-    if (this.precogEngine) this.precogEngine.start();
-    if (this.zoomEngine) this.zoomEngine.render();
+    if (this.running) return this;
+
+    this.precogEngine?.start();
+    this.running = true;
+    this.requestRender('runtime:start');
+    this.publishLifecycle('runtime:started');
+
+    return this;
   }
 
   stop() {
-    if (this.precogEngine) this.precogEngine.stop();
-    console.log('[ORCHESTRATOR] :: Pipeline telemetry paused.');
+    if (!this.running) return this;
+
+    this.precogEngine?.stop();
+    this.running = false;
+    this.publishLifecycle('runtime:stopped');
+
+    return this;
   }
 
-  handleSystemLog(message, source) {
-    const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
-    console.log(`[${timestamp}][${source}] :: ${message}`);
+  destroy() {
+    this.stop();
+
+    for (const dispose of this.disposers) {
+      try { dispose(); } catch (err) {
+        this.logger.error('[ORCHESTRATOR] dispose failed', err);
+      }
+    }
+    this.disposers = [];
+
+    this.zoomEngine?.destroy?.();
+    this.canvasSetup?.destroy?.();
+    this.spatialManager?.destroy?.();
+    this.precogEngine?.destroy?.();
+
+    this.canvasSetup = null;
+    this.spatialManager = null;
+    this.zoomEngine = null;
+    this.precogEngine = null;
+
+    this.initialized = false;
+    this.publishLifecycle('runtime:destroyed');
+    return this;
+  }
+
+  loadTopology(dynamicMemoryBlocks = []) {
+    if (!this.spatialManager) {
+      throw new Error('[ORCHESTRATOR] cannot load topology before initialize()');
+    }
+
+    const projectedNodes =
+      this.spatialManager.populateFromHierarchy(dynamicMemoryBlocks);
+
+    this.logger.info(
+      `[ORCHESTRATOR] topology loaded (${projectedNodes.length} nodes)`
+    );
+
+    this.requestRender('topology:loaded');
+    return projectedNodes;
+  }
+
+  requestRender(reason = 'unknown') {
+    if (!this.zoomEngine || this.renderQueued) return;
+
+    this.renderQueued = true;
+    requestAnimationFrame(() => {
+      this.renderQueued = false;
+      this.zoomEngine?.render?.();
+      this.publishLifecycle('runtime:rendered', { reason });
+    });
+  }
+
+  publishLifecycle(type, extra = {}) {
+    this.bus?.publish?.(type, {
+      canvasId: this.canvasId,
+      initialized: this.initialized,
+      running: this.running,
+      ...extra
+    });
+  }
+
+  logSystem(message, source = 'runtime') {
+    this.logger.info(`[${source}] ${message}`);
   }
 }
+module.exports = PrecogRuntimeOrchestrator;
 

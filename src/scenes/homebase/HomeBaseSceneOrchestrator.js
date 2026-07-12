@@ -2,9 +2,9 @@
 // CathedralOS Native Module — HomeBase Scene Runtime Conductor
 // Binds PrecogRuntimeOrchestrator + SoulVibeRouter into one live scene system.
 
-const PrecogRuntimeOrchestrator = require('../subsystems/precog-runtime/precog-orchestrator');
-const SoulVibeRouter = require('../subsystems/soul-vibe/SoulVibeRouter');
-const RodentDJMixer = require('../../subsystems/homebase/RodentDJMixer'); // Linked to your tactical deck
+const PrecogRuntimeOrchestrator = require('../../subsystems/precog-runtime/precog-orchestrator');
+const SoulVibeRouter = require('../../subsystems/soul-vibe/SoulVibeRouter');
+const RodentDJMixer = require('../../subsystems/homebase/RodentDJMixer');
 
 class HomeBaseSceneOrchestrator {
   constructor(options = {}) {

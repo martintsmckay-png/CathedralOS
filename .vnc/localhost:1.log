@@ -1,0 +1,149 @@
+
+Xvnc TigerVNC 1.16.2 - built Apr 29 2026 05:55:51
+Copyright (C) 1999-2026 TigerVNC team and many others (see README.rst)
+See https://www.tigervnc.org for information on TigerVNC.
+Underlying X server release 12101016
+
+Built without GBM support
+Failed to initialize DRI3 extension
+Sync Extension 3.1
+
+Fri Jun 26 03:37:30 2026
+ vncext:      VNC extension running!
+ vncext:      Listening for VNC connections on all interface(s), port 5901
+ vncext:      Created VNC server for screen 0
+[dix] Could not init font path element /data/data/com.termux/files/usr/share/fonts/misc/, removing from list!
+[dix] Could not init font path element /data/data/com.termux/files/usr/share/fonts/TTF/, removing from list!
+[dix] Could not init font path element /data/data/com.termux/files/usr/share/fonts/OTF/, removing from list!
+[dix] Could not init font path element /data/data/com.termux/files/usr/share/fonts/Type1/, removing from list!
+[dix] Could not init font path element /data/data/com.termux/files/usr/share/fonts/100dpi/, removing from list!
+[dix] Could not init font path element /data/data/com.termux/files/usr/share/fonts/75dpi/, removing from list!
+Popen: `"/data/data/com.termux/files/usr/bin/xkbcomp" -w 1 "-R/data/data/com.termux/files/usr/share/X11/xkb" -xkm "-" -em1 "The XKEYBOARD keymap compiler (xkbcomp) reports:" -emp "> " -eml "Errors from xkbcomp are not fatal to the X server" "/data/data/com.termux/files/usr/tmp/server-1.xkm"', fp = 0xb4000077d275c018
+Pclose: fp = 0xb4000077d275c018
+The XKEYBOARD keymap compiler (xkbcomp) reports:
+> Warning:          Multiple symbols for level 1/group 1 on key <FK23>
+>                   Using F23, ignoring XF86TouchpadOff
+> Warning:          Symbol map for key <FK23> redefined
+>                   Using last definition for conflicting fields
+> Warning:          Symbol map for key <FK24> redefined
+>                   Using last definition for conflicting fields
+> Warning:          Could not resolve keysym XF86ElectronicPrivacyScreenOn
+> Warning:          Could not resolve keysym XF86ElectronicPrivacyScreenOff
+> Warning:          Could not resolve keysym XF86ActionOnSelection
+> Warning:          Could not resolve keysym XF86ContextualInsert
+> Warning:          Could not resolve keysym XF86ContextualQuery
+Errors from xkbcomp are not fatal to the X server
+Loaded XKB keymap /data/data/com.termux/files/usr/tmp/server-1.xkm, defined=0x7f
+client(0): Reserved pid(16167).
+client(0): Reserved cmdname(/data/data/com.termux/files/usr/bin/Xvnc) and cmdargs(:1 -auth /data/data/com.termux/files/home/.Xauthority -desktop localhost:1 () -geometry 1024x768 -rfbauth /data/data/com.termux/files/home/.vnc/passwd -rfbport 5901).
+[mi] mieq: warning: overriding existing handler 0x0 with 0x5815c00e60 for event 2
+[mi] mieq: warning: overriding existing handler 0x0 with 0x5815c00e60 for event 3
+/data/data/com.termux/files/home/.vnc/xstartup: 11: /data/data/com.termux/files/home/.vnc/xstartup: 7: twm: not foundaterm: not found
+
+client(200000): Reserved pid(16365).
+client(200000): Reserved cmdname(./cathedral_run) and cmdargs(NULL).
+AllocNewConnection: client index = 1, socket fd = 8, local = 1
+
+Fri Jun 26 03:38:12 2026
+ Connections: Accepted: 127.0.0.1::34786
+ VNCSConnST:  Closing 127.0.0.1::34786: Reading version failed, not an RFB
+              client?
+ EncodeManager: Framebuffer updates: 0
+ EncodeManager:   Total: 0 rects, 0 pixels
+ EncodeManager:          0 B (1:nan ratio)
+ Connections: Closed: 127.0.0.1::34786
+ Connections: Accepted: 127.0.0.1::34800
+ Connections: Accepted: 127.0.0.1::34814
+
+Fri Jun 26 03:38:14 2026
+ VNCSConnST:  Closing 127.0.0.1::34800: Reading version failed, not an RFB
+              client?
+ EncodeManager: Framebuffer updates: 0
+ EncodeManager:   Total: 0 rects, 0 pixels
+ EncodeManager:          0 B (1:nan ratio)
+ Connections: Closed: 127.0.0.1::34800
+ Connections: Accepted: 127.0.0.1::37526
+
+Fri Jun 26 03:38:38 2026
+ VNCSConnST:  Closing 127.0.0.1::34814: read: Connection reset by peer (104)
+ EncodeManager: Framebuffer updates: 0
+ EncodeManager:   Total: 0 rects, 0 pixels
+ EncodeManager:          0 B (1:nan ratio)
+ Connections: Closed: 127.0.0.1::34814
+ VNCSConnST:  Closing 127.0.0.1::37526: read: Connection reset by peer (104)
+ EncodeManager: Framebuffer updates: 0
+ EncodeManager:   Total: 0 rects, 0 pixels
+ EncodeManager:          0 B (1:nan ratio)
+ Connections: Closed: 127.0.0.1::37526
+
+Fri Jun 26 04:06:09 2026
+ Connections: Accepted: 127.0.0.1::47514
+ VNCSConnST:  Closing 127.0.0.1::47514: Reading version failed, not an RFB
+              client?
+ EncodeManager: Framebuffer updates: 0
+ EncodeManager:   Total: 0 rects, 0 pixels
+ EncodeManager:          0 B (1:nan ratio)
+ Connections: Closed: 127.0.0.1::47514
+ Connections: Blacklisted: 127.0.0.1
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:06:12 2026
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:06:13 2026
+ Connections: Blacklisted: 127.0.0.1
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:06:43 2026
+ Connections: Accepted: 127.0.0.1::38498
+ VNCSConnST:  Closing 127.0.0.1::38498: Reading version failed, not an RFB
+              client?
+ EncodeManager: Framebuffer updates: 0
+ EncodeManager:   Total: 0 rects, 0 pixels
+ EncodeManager:          0 B (1:nan ratio)
+ Connections: Closed: 127.0.0.1::38498
+ Connections: Blacklisted: 127.0.0.1
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:06:46 2026
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:06:47 2026
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:06:50 2026
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:06:51 2026
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:09:11 2026
+ Connections: Accepted: 127.0.0.1::40898
+ VNCSConnST:  Closing 127.0.0.1::40898: Reading version failed, not an RFB
+              client?
+ EncodeManager: Framebuffer updates: 0
+ EncodeManager:   Total: 0 rects, 0 pixels
+ EncodeManager:          0 B (1:nan ratio)
+ Connections: Closed: 127.0.0.1::40898
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:09:12 2026
+ Connections: Blacklisted: 127.0.0.1
+ Connections: Blacklisted: 127.0.0.1
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:10:47 2026
+ Connections: Accepted: 127.0.0.1::55940
+ VNCSConnST:  Closing 127.0.0.1::55940: Reading version failed, not an RFB
+              client?
+ EncodeManager: Framebuffer updates: 0
+ EncodeManager:   Total: 0 rects, 0 pixels
+ EncodeManager:          0 B (1:nan ratio)
+ Connections: Closed: 127.0.0.1::55940
+ Connections: Blacklisted: 127.0.0.1
+ Connections: Blacklisted: 127.0.0.1
+
+Fri Jun 26 04:10:49 2026
+ Connections: Blacklisted: 127.0.0.1
+client(200000): Released pid(16365).
+client(200000): Released cmdline(./cathedral_run) and cmdargs(NULL).

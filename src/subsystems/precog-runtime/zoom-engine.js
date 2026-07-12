@@ -4,7 +4,7 @@
 const Z_THRESHOLD_MACRO = 3.0;
 const Z_THRESHOLD_MESSAGE = 7.0;
 
-export class ZoomEngine {
+class ZoomEngine {
   constructor(canvas, fabricCanvasSetupInstance, spatialNodeManager = null) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
@@ -310,42 +310,22 @@ export class ZoomEngine {
   }
 
 
-  /**
+  
+ /**
    * Prevent labels from blowing out node bounds
    */
-  truncateText(text, maxLength) {
-    if (typeof text !== 'string') {
-      return '';
-    }
-
-    if (text.length <= maxLength) {
-      return text;
-    }
-
-    return `${text.slice(0, maxLength - 3)}...`;
+truncateText(text, maxLength) {
+  if (typeof text !== 'string') {
+    return '';
   }
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 3)}...`;
 }
 
-  /**
-   * FIXED: State Layering Hook
-   * Isolates the playback snapshot instead of mutating runtime truth mid-frame
-   */
-  setReplayFrame(frame) {
-    this.replayFrame = frame;
-    if (frame && (frame.camera || frame.nodes)) {
-      this.replayMode = true;
-    } else {
-      this.replayMode = false;
-    }
-    this.render();
-  }
+} // <-- closes class ZoomEngine
 
-  /**
-   * Restores regular simulation perspective rendering
-   */
-  clearReplayMode() {
-    this.replayMode = false;
-    this.replayFrame = null;
-    this.render();
-  }
-
+module.exports = ZoomEngine;
