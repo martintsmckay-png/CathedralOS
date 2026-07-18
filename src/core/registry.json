@@ -2,7 +2,7 @@
   "system_identity": {
     "name": "CathedralOS",
     "version": "1.0.0",
-    "tier": "Level 2 Apprentice"
+    "tier": "Level 3 Journeyman"
   },
   "modules": [
     {
@@ -28,6 +28,22 @@
       "type": "Automation Utility",
       "status": "ACTIVE",
       "features": ["Zero-Width Space Tracking", "Quest Verification Loop"]
+    },
+    {
+      "id": "observatory_core",
+      "name": "Observatory Perception Engine",
+      "path": "src/observatory/eventStream.js",
+      "type": "Telemetry Tracker",
+      "status": "ACTIVE",
+      "features": ["Unified Event Ticker", "Global Pulse Emitter"]
+    },
+    {
+      "id": "observatory_classifier",
+      "name": "Observatory Event Classifier",
+      "path": "src/observatory/classifier.js",
+      "type": "Perception Component",
+      "status": "ACTIVE",
+      "features": ["Not-A-Bug Taxonomy Engine", "Reward Tracking Engine"]
     }
   ]
 }
