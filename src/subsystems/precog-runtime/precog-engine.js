@@ -1,6 +1,8 @@
 // src/subsystems/precog-runtime/precog-engine.js
 // CathedralOS Native Module — Telemetry Stream & Anomaly Prediction Engine
 
+import { TemporalCompiler } from "./temporal-compiler.js";
+
 export class PrecogEngine {
   #bus;
   #historyLimit;
@@ -55,7 +57,6 @@ export class PrecogEngine {
 
     const channel = this.#channels.get(channelId);
 
-    // FIXED: Removed duplicated, broken array push syntax blocks
     if (!Array.isArray(channel.history)) {
       channel.history = [];
     }
@@ -88,17 +89,23 @@ export class PrecogEngine {
     const prevVal = Number(previous.payload.value ?? 0);
     const variance = Math.abs(currentVal - prevVal);
 
-    // If variance breaks statistical baseline threshold, spin up alternative evaluation forks
+    // If variance breaks baseline threshold, compile an execution instruction and spin up forks
     if (variance > 50) {
       const forkId = `fork_${channelId}_${latest.timestamp}`;
+      
+      // Compile raw syntax to byte stream representation via the TemporalCompiler
+      const compilerExpr = `Frame ${latest.timestamp}: Δ=${variance.toFixed(2)}`;
+      const bytecode = TemporalCompiler.compile(compilerExpr);
+
       channel.forks.set(forkId, {
         baseTimestamp: latest.timestamp,
+        bytecodeVector: bytecode,
         activeLanes: ['optimistic', 'pessimistic', 'neutral'],
         winningState: 'divergent',
         confidenceScores: { optimistic: 0.85, pessimistic: 0.45, neutral: 0.6 }
       });
 
-      this.#emit(`Anomaly event localized on channel [${channelId}]. Branching matrix ${forkId}.`, 'PRECOG_COMPUTE');
+      this.#emit(`Anomaly event localized on channel [${channelId}]. Compiled bytecode sequence [${bytecode.join(', ')}]. Branching matrix ${forkId}.`, 'PRECOG_COMPUTE');
       this.#attemptMerges(channel, forkId);
     }
   }
@@ -119,9 +126,9 @@ export class PrecogEngine {
     const winningAvgConfidence = winningLanes.length > 0 ? totalConfidence / winningLanes.length : 0.0;
 
     if (winningAvgConfidence > 0.7) {
-      // FIXED: Corrected broken template string syntax and properly enclosed backticks
+      // FIXED: Cleared truncated buffer, balanced backticks, and finalized log routing
       this.#emit(
-        `MERGE EVENT // fork=${forkId} // state=${winningState} // agreeing=${winningLanes.length}/${activeLanes.length} // avgConfidence=${winningAvgConfidence.toFixed(2)} -> Timeline Unified.`,
+        `MERGE EVENT // fork=${forkId} // state=${winningState} // agreeing=${winningLanes.length}/${activeLanes.length} // avgConfidence=${winningAvgConfidence.toFixed(2)} -> CONSOLIDATED`,
         'PRECOG_MERGE'
       );
       channel.forks.delete(forkId);
