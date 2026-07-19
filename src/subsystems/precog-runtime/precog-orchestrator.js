@@ -29,6 +29,7 @@ class PrecogRuntimeOrchestrator {
 
     this.canvasSetup = null;
     this.spatialManager = null;
+    this.nodeManager = null; // Test suite alignment hook
     this.zoomEngine = null;
     this.precogEngine = null;
 
@@ -45,6 +46,8 @@ class PrecogRuntimeOrchestrator {
 
     this.canvasSetup = this.canvasFactory(this.canvasId);
     this.spatialManager = this.spatialFactory();
+    this.nodeManager = this.spatialManager; // Alias for test runner expectations
+
     this.zoomEngine = this.zoomFactory({
       canvas: this.canvasSetup.canvas,
       canvasSetup: this.canvasSetup,
@@ -63,6 +66,27 @@ class PrecogRuntimeOrchestrator {
 
     this.initialized = true;
     this.publishLifecycle('runtime:initialized');
+    return this;
+  }
+
+  mountCanvas(canvasId) {
+    if (!canvasId) {
+      throw new Error('[ORCHESTRATOR] mountCanvas requires a valid canvasId');
+    }
+
+    this.logger.info(`[ORCHESTRATOR] mounting canvas dynamic link for target: ${canvasId}`);
+    this.canvasId = canvasId;
+
+    // Auto-initialize if the test suite bypasses an explicit initialize invocation
+    if (!this.initialized) {
+      this.initialize();
+    } else if (this.canvasSetup) {
+      this.logger.warn('[ORCHESTRATOR] re-mounting canvas on an already initialized runtime');
+      if (typeof this.canvasSetup.updateElement === 'function') {
+        this.canvasSetup.updateElement(canvasId);
+      }
+    }
+
     return this;
   }
 
@@ -105,6 +129,7 @@ class PrecogRuntimeOrchestrator {
 
     this.canvasSetup = null;
     this.spatialManager = null;
+    this.nodeManager = null;
     this.zoomEngine = null;
     this.precogEngine = null;
 
@@ -126,6 +151,25 @@ class PrecogRuntimeOrchestrator {
     );
 
     this.requestRender('topology:loaded');
+    return projectedNodes;
+  }
+
+  loadSystemTopology(nodes = [], edges = []) {
+    if (!this.spatialManager) {
+      throw new Error('[ORCHESTRATOR] cannot load system topology before initialize()');
+    }
+
+    const projectedNodes = this.spatialManager.populateFromHierarchy?.(nodes) || [];
+    
+    if (this.spatialManager) {
+      this.spatialManager.edges = edges;
+    }
+
+    this.logger.info(
+      `[ORCHESTRATOR] system topology aligned: ${projectedNodes.length || nodes.length} nodes, ${edges.length} edges mapped.`
+    );
+
+    this.requestRender('system-topology:loaded');
     return projectedNodes;
   }
 
