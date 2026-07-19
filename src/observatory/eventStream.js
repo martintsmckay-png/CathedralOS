@@ -16,3 +16,7 @@ export class ObservatoryStream {
         this.listeners.push(listener);
     }
 }
+
+// Instantiate and export the global singleton instance
+export const EventStream = new ObservatoryStream();
+
