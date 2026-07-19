@@ -1,5 +1,5 @@
-import { DoctrineNavigator } from "../observatory/doctrine-navigator.js";
-import { InsightDashboard } from "../observatory/insight-dashboard.js";
+import { DoctrineNavigator } from "../../../observatory/doctrine-navigator.js";
+import { InsightDashboard } from "../../../observatory/insight-dashboard.js";
 
 const searchInput = document.getElementById("nav-search");
 const catSelect = document.getElementById("nav-category");
