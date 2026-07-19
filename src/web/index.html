@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CathedralOS // COSMICOS Core</title>
+    <style>
+        :root {
+            --matrix-glow: #a855f7;
+            --terminal-bg: #090712;
+            --panel-bg: #130f26;
+            --text-main: #d1caec;
+            --text-muted: #6b609c;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --alert: #ef4444;
+        }
+
+        body {
+            background-color: var(--terminal-bg);
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .engine-core {
+            background-color: var(--panel-bg);
+            border: 2px solid var(--matrix-glow);
+            border-radius: 8px;
+            padding: 25px;
+            width: 100%;
+            max-width: 550px;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.15);
+        }
+
+        .header {
+            border-bottom: 1px dashed var(--text-muted);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mode-badge {
+            font-size: 0.8em;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid var(--matrix-glow);
+            color: var(--matrix-glow);
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .metric-display {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--success);
+            transition: border-left-color 0.2s ease;
+        }
+
+        .system-text {
+            font-size: 0.95em;
+            line-height: 1.5;
+            min-height: 45px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            background: #1e173b;
+            color: var(--text-main);
+            border: 1px solid #4c1d95;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: inherit;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--matrix-glow);
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+            color: #fff;
+        }
+
+        .log-stream {
+            margin-top: 20px;
+            font-size: 0.8em;
+            color: var(--text-muted);
+            height: 60px;
+            overflow-y: auto;
+            border-top: 1px solid rgba(107, 96, 156, 0.2);
+            padding-top: 10px;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.15); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="engine-core">
+    <div class="header">
+        <span style="font-weight: bold;">MODULE // COSMICOS_v1.0</span>
+        <span class="mode-badge" id="view-toggle" onclick="togglePerspective()">Perspective: Lore</span>
+    </div>
+
+    <!-- LIVE TELEMETRY HEARTBEAT WIDGET -->
+    <div class="metric-display" id="heartbeat-widget" style="border-left-color: var(--success); margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <div style="font-size: 0.75em; color: var(--text-muted); margin-bottom: 3px;">SYSTEM PULSE</div>
+            <div style="font-size: 0.9em; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                <span id="pulse-icon" style="color: var(--success); display: inline-block; animation: pulse-glow 2s infinite ease-in-out;">●</span>
+                <span id="pulse-status">ALIVE</span>
+            </div>
+        </div>
+        <div style="text-align: right; font-size: 0.7em; color: var(--text-muted); line-height: 1.4;">
+            Source: <span id="pulse-source" style="color: var(--text-main);">eventStream.js</span><br>
+            Updated: <span id="pulse-time">Just now</span>
+        </div>
+    </div>
+
+    <div class="metric-display" id="status-card">
+        <div style="font-size: 0.75em; color: var(--text-muted); margin-bottom: 5px;" id="label-context">CURRENT DIALECTIC</div>
+        <div class="system-text" id="display-text">The KitchenTable node is completely stable. The dynamic balance of code and story is perfectly aligned.</div>
+    </div>
+
+    <div class="controls">
+        <button onclick="generateForecast()">Query Forecast</button>
+        <button onclick="simulatedReload()" style="border-color: #b45309;">Trigger Hot-Reload</button>
+    </div>
+
+    <div class="log-stream" id="event-logs">
+        <div>[SYSTEM]: COSMICOS initialized. Ready for anonymous traffic.</div>
+    </div>
+</div>
+
+<script>
+    let currentMode = 'lore'; // Toggles between 'lore' and 'tech'
+    let iframeGuardActive = false;
+
+    const dataPools = {
+        lore: [
+            "The Commitpaladin has cleared the shadows. The repository heart beats smoothly.",
+            "Holy Ghost Tea levels are optimal. Take a tactical breath.",
+            "PastaGuard detects zero tangled routing anomalies in the current quadrant.",
+            "The Archivist logs a moment of profound architectural peace."
+        ],
+        tech: [
+            "git status: working tree clean. Zero modified files detected.",
+            "Local server running flawlessly on localhost:8080.",
+            "DOM status: 0xE2808B phantom character count is exactly 0.",
+            "State management guard flags are fully synced with active DOM frames."
+        ]
+    };
+
+    function logEvent(text) {
+        const logs = document.getElementById('event-logs');
+        const entry = document.createElement('div');
+        entry.textContent = `[${new Date().toLocaleTimeString()}]: ${text}`;
+        logs.appendChild(entry);
+        logs.scrollTop = logs.scrollHeight;
+    }
+
+    function togglePerspective() {
+        currentMode = currentMode === 'lore' ? 'tech' : 'lore';
+        document.getElementById('view-toggle').textContent = `Perspective: ${currentMode}`;
+        document.getElementById('label-context').textContent = currentMode === 'lore' ? 'CURRENT DIALECTIC' : 'COMPILER STATE';
+        generateForecast();
+        logEvent(`Switched tracking matrix to view-mode: ${currentMode}`);
+    }
+
+    function generateForecast() {
+        const pool = dataPools[currentMode];
+        const randomText = pool[Math.floor(Math.random() * pool.length)];
+        document.getElementById('display-text').textContent = randomText;
+    }
+
+    function simulatedReload() {
+        iframeGuardActive = true;
+        const card = document.getElementById('status-card');
+
+        card.style.borderLeftColor = 'var(--alert)';
+        document.getElementById('display-text').textContent = "WARNING: Hot-reload detected. Checking initialization structures...";
+        logEvent("Hot-reload cycle initiated. Enforcing active iframe state verification.");
+
+        setTimeout(() => {
+            iframeGuardActive = false;
+            card.style.borderLeftColor = 'var(--success)';
+            logEvent("Circuit Breaker Active: Successfully verified DOM state. Stale flags cleared.");
+            generateForecast();
+        }, 1200);
+    }
+
+    // --- OBSERVATORY TELEMETRY BINDING IMPLEMENTATION ---
+    const ObservatoryStream = window.ObservatoryStream || {
+        subscribe: (callback) => {
+            setInterval(() => {
+                const states = [
+                    { status: "ALIVE", icon: "●", color: "#22c55e", source: "eventStream.js" },
+                    { status: "DELAYED", icon: "▲", color: "#f59e0b", source: "eventStream.js // Lag detected" },
+                    { status: "OFFLINE", icon: "✕", color: "#ef4444", source: "kernel.core // Disconnected" }
+                ];
+                const roll = Math.random();
+                const state = roll > 0.92 ? (roll > 0.97 ? states[2] : states[1]) : states[0];
+                callback(state);
+            }, 3000);
+        }
+    };
+
+    ObservatoryStream.subscribe((packet) => {
+        const iconEl = document.getElementById('pulse-icon');
+        const statusEl = document.getElementById('pulse-status');
+        const sourceEl = document.getElementById('pulse-source');
+        const timeEl = document.getElementById('pulse-time');
+        const widgetEl = document.getElementById('heartbeat-widget');
+
+        statusEl.textContent = packet.status;
+        iconEl.textContent = packet.icon;
+        iconEl.style.color = packet.color;
+        widgetEl.style.borderLeftColor = packet.color;
+        sourceEl.textContent = packet.source;
+        timeEl.textContent = new Date().toLocaleTimeString();
+
+        if (packet.status === 'OFFLINE') {
+            iconEl.style.animation = 'none';
+            logEvent(`CRITICAL: Telemetry stream reported state [${packet.status}]. Core connection severed.`);
+        } else if (packet.status === 'DELAYED') {
+            iconEl.style.animation = 'pulse-glow 0.5s infinite ease-in-out';
+            logEvent(`WARNING: Telemetry heartbeat reported state [${packet.status}]. Stale buffer detected.`);
+        } else {
+            iconEl.style.animation = 'pulse-glow 2s infinite ease-in-out';
+        }
+    });
+</script>
+
+</body>
+</html>
+
