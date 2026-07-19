@@ -1,22 +1,45 @@
 export class ObservatoryStream {
     constructor() {
+        this.listeners = new Map();
         this.events = [];
-        this.listeners = [];
+    }
+
+    subscribe(type, callback) {
+        if (!this.listeners.has(type)) {
+            this.listeners.set(type, []);
+        }
+
+        this.listeners.get(type).push(callback);
+
+        return () => {
+            const current = this.listeners.get(type) || [];
+            this.listeners.set(
+                type,
+                current.filter(cb => cb !== callback)
+            );
+        };
     }
 
     emit(event) {
         this.events.push(event);
 
-        this.listeners.forEach(
-            listener => listener(event)
-        );
+        const callbacks = this.listeners.get(event.type) || [];
+
+        callbacks.forEach(cb => {
+            try {
+                cb(event);
+            } catch (err) {
+                console.error(err);
+            }
+        });
     }
 
-    subscribe(listener) {
-        this.listeners.push(listener);
+    getMetrics() {
+        return {
+            packets: this.events.length,
+            channels: this.listeners.size
+        };
     }
 }
 
-// Instantiate and export the global singleton instance
 export const EventStream = new ObservatoryStream();
-
