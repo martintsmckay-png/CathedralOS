@@ -25,14 +25,30 @@ QUARANTINE_DIR = Path("ccq_quarantine")
 DECISION_DIR = Path("ccq_decisions")
 
 
+class Color:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+
+    @staticmethod
+    def wrap(text, color):
+        return f"{color}{text}{Color.RESET}"
+
+
 def clear_screen():
     os.system("clear")
 
 
 def banner():
-    print("=" * 46)
-    print("          CATHEDRALOS STEWARD CONSOLE")
-    print("=" * 46)
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print(Color.wrap("          CATHEDRALOS STEWARD CONSOLE", Color.BOLD))
+    print(Color.wrap("=" * 46, Color.CYAN))
     print(
         "Time:",
         datetime.now(timezone.utc).isoformat(),
@@ -41,32 +57,32 @@ def banner():
 
 
 def show_current_segment():
-    print(">> CURRENT LEDGER SEGMENT")
+    print(Color.wrap(">> CURRENT LEDGER SEGMENT", Color.CYAN))
 
     if not CURRENT.exists():
-        print("No ledger-current.json found.")
+        print(Color.wrap("No ledger-current.json found.", Color.YELLOW))
         return
 
     try:
         data = load_current_ledger()
         print(json.dumps(data, indent=2, ensure_ascii=False))
     except json.JSONDecodeError as exc:
-        print(f"Invalid ledger JSON: {exc}")
+        print(Color.wrap(f"Invalid ledger JSON: {exc}", Color.RED))
 
     print()
 
 
 def show_segments():
-    print(">> ARCHIVED SEGMENTS")
+    print(Color.wrap(">> ARCHIVED SEGMENTS", Color.CYAN))
 
     if not LEDGER_DIR.exists():
-        print("No ledger directory found.")
+        print(Color.wrap("No ledger directory found.", Color.YELLOW))
         return
 
     segments = sorted(LEDGER_DIR.glob("ledger-*.json"))
 
     if not segments:
-        print("No archived segments found.")
+        print(Color.wrap("No archived segments found.", Color.YELLOW))
     else:
         for path in segments:
             print(f"- {path.name}")
@@ -75,7 +91,7 @@ def show_segments():
 
 
 def show_status():
-    print(">> LEDGER STATUS")
+    print(Color.wrap(">> LEDGER STATUS", Color.CYAN))
 
     ledger = load_current_ledger()
     entries = ledger.get("entries", [])
@@ -88,20 +104,20 @@ def show_status():
 
 
 def rotate_now():
-    print(">> ROTATION REQUESTED")
+    print(Color.wrap(">> ROTATION REQUESTED", Color.CYAN))
 
     digest = rotate_ledger()
 
     if digest:
-        print(f"[ROTATED] Sealed segment -> {digest}")
+        print(Color.wrap(f"[ROTATED] Sealed segment -> {digest}", Color.CYAN))
     else:
-        print("[ROTATION] No entries; nothing to rotate.")
+        print(Color.wrap("[ROTATION] No entries; nothing to rotate.", Color.YELLOW))
 
     print()
 
 
 def record_test_event():
-    print(">> RECORDING TEST CCQ EVENT")
+    print(Color.wrap(">> RECORDING TEST CCQ EVENT", Color.CYAN))
 
     event, digest = record_ccq_event({
         "traveler": "test-artifact",
@@ -109,18 +125,18 @@ def record_test_event():
         "source": "steward_console",
     })
 
-    print(f"[CCQ] Event hash: {event['event_hash']}")
+    print(Color.wrap(f"[CCQ] Event hash: {event['event_hash']}", Color.BLUE))
 
     if digest:
-        print(f"[ROTATED] Segment hash: {digest}")
+        print(Color.wrap(f"[ROTATED] Segment hash: {digest}", Color.CYAN))
 
     print()
 
 
 def render_passport_panel(report):
-    print("=" * 46)
-    print("              ARTIFACT PASSPORT")
-    print("=" * 46)
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print(Color.wrap("              ARTIFACT PASSPORT", Color.BOLD))
+    print(Color.wrap("=" * 46, Color.CYAN))
 
     traveler = report.get("traveler", "unknown")
     passport = report.get("passport", {})
@@ -128,10 +144,10 @@ def render_passport_panel(report):
     hospitality_packet = report.get("hospitality_packet", {})
     golden_thread = report.get("golden_thread", {})
 
-    print(f"Traveler: {traveler}")
+    print(f"Traveler: {Color.wrap(traveler, Color.YELLOW)}")
     print()
 
-    print("PASSPORT:")
+    print(Color.wrap("PASSPORT:", Color.BLUE))
     if passport:
         for key, value in passport.items():
             print(f"  - {key}: {value}")
@@ -139,7 +155,7 @@ def render_passport_panel(report):
         print("  (none)")
     print()
 
-    print("X-RAY:")
+    print(Color.wrap("X-RAY:", Color.BLUE))
     if xray:
         for key, value in xray.items():
             print(f"  - {key}: {value}")
@@ -147,7 +163,7 @@ def render_passport_panel(report):
         print("  (none)")
     print()
 
-    print("HOSPITALITY PACKET:")
+    print(Color.wrap("HOSPITALITY PACKET:", Color.BLUE))
     if hospitality_packet:
         for key, value in hospitality_packet.items():
             print(f"  - {key}: {value}")
@@ -155,7 +171,7 @@ def render_passport_panel(report):
         print("  (none)")
     print()
 
-    print("GOLDEN THREAD:")
+    print(Color.wrap("GOLDEN THREAD:", Color.BLUE))
     if golden_thread:
         for key, value in golden_thread.items():
             print(f"  - {key}: {value}")
@@ -163,17 +179,17 @@ def render_passport_panel(report):
         print("  (none)")
     print()
 
-    print("=" * 46)
+    print(Color.wrap("=" * 46, Color.CYAN))
     print()
 
 
 def inspect_quarantine():
-    print(">> CCQ QUARANTINE ANALYSIS")
+    print(Color.wrap(">> CCQ QUARANTINE ANALYSIS", Color.CYAN))
 
     artifacts = list_quarantine_artifacts()
 
     if not artifacts:
-        print("No pending quarantine artifacts.")
+        print(Color.wrap("No pending quarantine artifacts.", Color.YELLOW))
         print()
         return
 
@@ -183,7 +199,7 @@ def inspect_quarantine():
             print_artifact_report(report)
             render_passport_panel(report)
         else:
-            print(f"Could not load artifact: {path.name}")
+            print(Color.wrap(f"Could not load artifact: {path.name}", Color.RED))
 
     print()
 
@@ -203,12 +219,12 @@ def archive_artifact(artifact_path, decision):
 
 
 def artifact_actions_menu(artifact_path):
-    print(f">> CCQ ARTIFACT ACTIONS - {artifact_path.name}")
+    print(Color.wrap(f">> CCQ ARTIFACT ACTIONS - {artifact_path.name}", Color.CYAN))
 
     report = inspect_artifact(artifact_path)
 
     if not report:
-        print("Could not load artifact.")
+        print(Color.wrap("Could not load artifact.", Color.RED))
         print()
         return
 
@@ -238,7 +254,7 @@ def artifact_actions_menu(artifact_path):
         decision = decisions.get(action)
 
         if decision is None:
-            input("Invalid option. Press Enter to continue...")
+            input(Color.wrap("Invalid option. Press Enter to continue...", Color.YELLOW))
             continue
 
         event = {
@@ -257,32 +273,38 @@ def artifact_actions_menu(artifact_path):
             recorded_event, digest = record_ccq_event(event)
             archived_path = archive_artifact(artifact_path, decision)
         except Exception as exc:
-            print(f"[FAILED] Action was not completed: {exc}")
+            print(Color.wrap(f"[FAILED] Action was not completed: {exc}", Color.RED))
             input("Press Enter to continue...")
             continue
 
-        print(f"[CCQ] {decision}: {recorded_event['event_hash']}")
-        print(f"[ARCHIVED] {archived_path}")
+        decision_color = {
+            "APPROVED": Color.GREEN,
+            "REJECTED": Color.RED,
+            "PROMOTED": Color.BLUE,
+        }.get(decision, Color.CYAN)
+
+        print(Color.wrap(f"[CCQ] {decision}: {recorded_event['event_hash']}", decision_color))
+        print(Color.wrap(f"[ARCHIVED] {archived_path}", Color.MAGENTA))
 
         if digest:
-            print(f"[ROTATED] Segment hash: {digest}")
+            print(Color.wrap(f"[ROTATED] Segment hash: {digest}", Color.CYAN))
 
         print()
         return
 
 
 def select_quarantine_artifact():
-    print(">> CCQ QUARANTINE - SELECT ARTIFACT")
+    print(Color.wrap(">> CCQ QUARANTINE - SELECT ARTIFACT", Color.CYAN))
 
     artifacts = list_quarantine_artifacts()
 
     if not artifacts:
-        print("No pending quarantine artifacts.")
+        print(Color.wrap("No pending quarantine artifacts.", Color.YELLOW))
         print()
         return
 
     for index, artifact_path in enumerate(artifacts, start=1):
-        print(f"{index}. {artifact_path.name}")
+        print(f"{index}. {Color.wrap(artifact_path.name, Color.YELLOW)}")
 
     print()
     choice = input("Select artifact number (or press Enter to cancel): ").strip()
@@ -293,14 +315,14 @@ def select_quarantine_artifact():
         return
 
     if not choice.isdigit():
-        print("Invalid selection.")
+        print(Color.wrap("Invalid selection.", Color.YELLOW))
         print()
         return
 
     index = int(choice)
 
     if index < 1 or index > len(artifacts):
-        print("Selection out of range.")
+        print(Color.wrap("Selection out of range.", Color.YELLOW))
         print()
         return
 
@@ -353,7 +375,7 @@ def main_menu():
                 clear_screen()
                 banner()
 
-                print(">> CCQ QUARANTINE MENU")
+                print(Color.wrap(">> CCQ QUARANTINE MENU", Color.CYAN))
                 print("1. View all artifact reports")
                 print("2. Select a single artifact")
                 print("3. Return to main menu")
@@ -372,13 +394,13 @@ def main_menu():
                 elif sub_choice == "3":
                     break
                 else:
-                    input("Invalid option. Press Enter to continue...")
+                    input(Color.wrap("Invalid option. Press Enter to continue...", Color.YELLOW))
 
         elif choice == "7":
             print("Exiting Steward Console.")
             break
         else:
-            input("Invalid option. Press Enter to continue...")
+            input(Color.wrap("Invalid option. Press Enter to continue...", Color.YELLOW))
 
 
 if __name__ == "__main__":
