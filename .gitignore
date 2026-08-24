@@ -10,3 +10,6 @@ test_run.log
 __pycache__/
 ccq_quarantine/
 __pycache__/
+__pycache__/
+*.py[cod]
+ledger/ledger-current.json
