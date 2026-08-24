@@ -117,6 +117,56 @@ def record_test_event():
     print()
 
 
+def render_passport_panel(report):
+    print("=" * 46)
+    print("              ARTIFACT PASSPORT")
+    print("=" * 46)
+
+    traveler = report.get("traveler", "unknown")
+    passport = report.get("passport", {})
+    xray = report.get("xray", {})
+    hospitality_packet = report.get("hospitality_packet", {})
+    golden_thread = report.get("golden_thread", {})
+
+    print(f"Traveler: {traveler}")
+    print()
+
+    print("PASSPORT:")
+    if passport:
+        for key, value in passport.items():
+            print(f"  - {key}: {value}")
+    else:
+        print("  (none)")
+    print()
+
+    print("X-RAY:")
+    if xray:
+        for key, value in xray.items():
+            print(f"  - {key}: {value}")
+    else:
+        print("  (none)")
+    print()
+
+    print("HOSPITALITY PACKET:")
+    if hospitality_packet:
+        for key, value in hospitality_packet.items():
+            print(f"  - {key}: {value}")
+    else:
+        print("  (none)")
+    print()
+
+    print("GOLDEN THREAD:")
+    if golden_thread:
+        for key, value in golden_thread.items():
+            print(f"  - {key}: {value}")
+    else:
+        print("  (none)")
+    print()
+
+    print("=" * 46)
+    print()
+
+
 def inspect_quarantine():
     print(">> CCQ QUARANTINE ANALYSIS")
 
@@ -131,6 +181,7 @@ def inspect_quarantine():
         report = inspect_artifact(path)
         if report:
             print_artifact_report(report)
+            render_passport_panel(report)
         else:
             print(f"Could not load artifact: {path.name}")
 
@@ -162,6 +213,7 @@ def artifact_actions_menu(artifact_path):
         return
 
     print_artifact_report(report)
+    render_passport_panel(report)
     print()
 
     while True:
