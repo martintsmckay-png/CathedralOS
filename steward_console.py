@@ -23,7 +23,10 @@ LEDGER_DIR = Path("ledger")
 CURRENT = LEDGER_DIR / "ledger-current.json"
 QUARANTINE_DIR = Path("ccq_quarantine")
 DECISION_DIR = Path("ccq_decisions")
+<<<<<<< HEAD
 TAG_DIR = Path("ccq_tags")
+=======
+>>>>>>> origin/main
 
 
 class Color:
@@ -219,6 +222,7 @@ def archive_artifact(artifact_path, decision):
     return Path(shutil.move(str(artifact_path), str(destination)))
 
 
+<<<<<<< HEAD
 def load_artifact_tags(artifact_name):
     TAG_DIR.mkdir(parents=True, exist_ok=True)
     tag_path = TAG_DIR / f"{artifact_name}.json"
@@ -314,6 +318,8 @@ def tag_artifact(artifact_path):
             input(Color.wrap("Invalid option. Press Enter to continue...", Color.YELLOW))
 
 
+=======
+>>>>>>> origin/main
 def artifact_actions_menu(artifact_path):
     print(Color.wrap(f">> CCQ ARTIFACT ACTIONS - {artifact_path.name}", Color.CYAN))
 
@@ -333,8 +339,12 @@ def artifact_actions_menu(artifact_path):
         print("1. Approve artifact")
         print("2. Reject artifact")
         print("3. Promote artifact")
+<<<<<<< HEAD
         print("4. Tag artifact")
         print("5. Return")
+=======
+        print("4. Return")
+>>>>>>> origin/main
         print()
 
         action = input("Select action: ").strip()
@@ -345,6 +355,7 @@ def artifact_actions_menu(artifact_path):
             "3": "PROMOTED",
         }
 
+<<<<<<< HEAD
         if action == "5":
             return
 
@@ -352,6 +363,10 @@ def artifact_actions_menu(artifact_path):
             clear_screen()
             tag_artifact(artifact_path)
             continue
+=======
+        if action == "4":
+            return
+>>>>>>> origin/main
 
         decision = decisions.get(action)
 
