@@ -11,6 +11,11 @@ from ledger_rotation import (
     should_rotate,
 )
 from ccq.ccq_ledger_bridge import record_ccq_event
+from ccq.ccq_inspector import (
+    list_quarantine_artifacts,
+    inspect_artifact,
+    print_artifact_report,
+)
 
 
 LEDGER_DIR = Path("ledger")
@@ -55,9 +60,7 @@ def show_segments():
         print("No ledger directory found.")
         return
 
-    segments = sorted(
-        LEDGER_DIR.glob("ledger-*.json")
-    )
+    segments = sorted(LEDGER_DIR.glob("ledger-*.json"))
 
     if not segments:
         print("No archived segments found.")
@@ -65,6 +68,19 @@ def show_segments():
         for path in segments:
             print(f"- {path.name}")
 
+    print()
+
+
+def show_status():
+    print(">> LEDGER STATUS")
+
+    ledger = load_current_ledger()
+    entries = ledger.get("entries", [])
+
+    print(f"Current segment: {ledger.get('segment', 1)}")
+    print(f"Entries: {len(entries)}")
+    print(f"Rotation threshold reached: {should_rotate()}")
+    print("Previous hash:", ledger.get("previous_sha256"))
     print()
 
 
@@ -98,19 +114,23 @@ def record_test_event():
     print()
 
 
-def show_status():
-    print(">> LEDGER STATUS")
+def inspect_quarantine():
+    print(">> CCQ QUARANTINE ANALYSIS")
 
-    ledger = load_current_ledger()
-    entries = ledger.get("entries", [])
+    artifacts = list_quarantine_artifacts()
 
-    print(f"Current segment: {ledger.get('segment', 1)}")
-    print(f"Entries: {len(entries)}")
-    print(f"Rotation threshold reached: {should_rotate()}")
-    print(
-        "Previous hash:",
-        ledger.get("previous_sha256"),
-    )
+    if not artifacts:
+        print("No pending quarantine artifacts.")
+        print()
+        return
+
+    for path in artifacts:
+        report = inspect_artifact(path)
+        if report:
+            print_artifact_report(report)
+        else:
+            print(f"Could not load artifact: {path.name}")
+
     print()
 
 
@@ -128,7 +148,8 @@ def main_menu():
         print("3. View ledger status")
         print("4. Rotate ledger now")
         print("5. Record test CCQ event")
-        print("6. Exit")
+        print("6. Inspect CCQ quarantine")
+        print("7. Exit")
         print()
 
         choice = input("Select option: ").strip()
@@ -154,6 +175,10 @@ def main_menu():
             record_test_event()
             pause()
         elif choice == "6":
+            clear_screen()
+            inspect_quarantine()
+            pause()
+        elif choice == "7":
             print("Exiting Steward Console.")
             break
         else:
