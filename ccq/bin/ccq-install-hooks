@@ -1,0 +1,27 @@
+#!/bin/bash
+# Cathedral Customs & Quarantine - Hook Installer
+
+TARGET_GIT_DIR=".git"
+
+if [ ! -d "$TARGET_GIT_DIR" ]; then
+    echo "[ERROR] No .git directory found. Run from the repository root."
+    exit 1
+fi
+
+HOOK_DEST="$TARGET_GIT_DIR/hooks/pre-commit"
+CCQ_ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [ -f "$HOOK_DEST" ] && [ "$1" != "--force" ]; then
+    cp "$HOOK_DEST" "$HOOK_DEST.bak"
+    echo "[C.C.Q.] Existing pre-commit hook backed up to pre-commit.bak"
+fi
+
+cat << EOF > "$HOOK_DEST"
+#!/bin/bash
+export CCQ_ROOT="$CCQ_ROOT_DIR"
+"$CCQ_ROOT_DIR/hooks/pre-commit" "\$@"
+EOF
+
+chmod +x "$HOOK_DEST"
+echo "[C.C.Q.] Pre-commit customs gate successfully installed to $HOOK_DEST"
+

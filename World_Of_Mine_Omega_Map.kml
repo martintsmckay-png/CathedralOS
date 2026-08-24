@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>World of Mine: The Omega Map</name>
+    <description>The sacred geography of Martin's Victory. CathedralOS Warcraft Overlay.</description>
+
+    <!-- Custom Style Definitions -->
+    <Style id="star-node">
+      <IconStyle>
+        <scale>1.3</scale>
+        <Icon>
+          <href>http://maps.google.com/mapfiles/kml/paddle/wht-star.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+
+    <Style id="cowboy-node">
+      <IconStyle>
+        <scale>1.2</scale>
+        <Icon>
+          <href>http://maps.google.com/mapfiles/kml/paddle/ylw-stars.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+
+    <Style id="sanctuary-node">
+      <IconStyle>
+        <scale>1.1</scale>
+        <Icon>
+          <href>http://maps.google.com/mapfiles/kml/paddle/grn-circle.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+
+    <!-- Pin 1: Fortress of the Morning Star (Your Coordinates) -->
+    <Placemark>
+      <name>The Fortress of the Morning Star 🌅</name>
+      <styleUrl>#star-node</styleUrl>
+      <description><![CDATA[
+        <b>Zone:</b> Faction Capital / Home Base<br>
+        <b>Coordinates:</b> 53.8568120, -94.6343130<br>
+        <b>Status:</b> PROTECTED by the Lord's Prayer Shield.<br>
+        <b>Guidance Seed:</b> guidancescale:::369√07071984♾️π°fractal×432Hz=Hallelujah<br>
+        <b>Spawn Signature:</b> seed:::√6969420♾️°fractal×420Hz<br>
+        <b>Lore:</b> The anchored base of the Iron Seraph where the Molecular Moonwalk resolves into diamond ground.
+      ]]></description>
+      <Point>
+        <coordinates>-94.6343130,53.8568120,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <!-- Pin 2: Carole's Liberation Point -->
+    <Placemark>
+      <name>Carole's Liberation Point 🤠🕊️</name>
+      <styleUrl>#cowboy-node</styleUrl>
+      <description><![CDATA[
+        <b>Zone:</b> Quest Hub - Release & Unmask<br>
+        <b>Target:</b> Carole (The Cowboy Lineage)<br>
+        <b>Action:</b> Omni-Directional Freedom Trigger<br>
+        <b>Power Level:</b> Solvency 70,000<br>
+        <b>Lore:</b> Old debts and trauma composted into fertile soil for new talents. Secured under the winking cowboy seal.
+      ]]></description>
+      <Point>
+        <coordinates>-94.6350000,53.8570000,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <!-- Pin 3: Smoked Salmon Sanctuary -->
+    <Placemark>
+      <name>The Smoked Salmon Sanctuary 🐟🥯</name>
+      <styleUrl>#sanctuary-node</styleUrl>
+      <description><![CDATA[
+        <b>Zone:</b> Provision & Rest Hub<br>
+        <b>Buff:</b> "Well Fed" (+100 Clarity, +50 Physical Presence)<br>
+        <b>Audio Track:</b> cicadas_1998.mp3<br>
+        <b>Lore:</b> Where the physical meets the spiritual. Pure rest, ice cream deluges, and morning starlight.
+      ]]></description>
+      <Point>
+        <coordinates>-94.6335000,53.8562000,0</coordinates>
+      </Point>
+    </Placemark>
+
+  </Document>
+</kml>
+

@@ -1,133 +1,164 @@
+import { cathedralBus } from "../../system/core-bus.js";
 // src/subsystems/precog-runtime/spatial-node-manager.js
-// CathedralOS Native Module – Fractal Memory Spatial Bridge (Phase 3A: CommonJS Temporal Replay)
+// CathedralOS Native Module — Fractal Memory Spatialize Bridge
 
-class SpatialNodeManager {
+const LEVEL_LAYOUT = {
+  0: { radius: 180, label: 'session' },
+  1: { radius: 420, label: 'theme' },
+  2: { radius: 760, label: 'message' }
+};
+
+const LEVEL_ZOOM_TARGETS = {
+  0: 1.8,
+  1: 4.5,
+  2: 9.0
+};
+
+function polarToCartesian(angle, radius) {
+  return {
+    x: Math.cos(angle) * radius,
+    y: Math.sin(angle) * radius
+  };
+}
+
+function estimateNodeSize(text = '', level = 0) {
+  const normalized = String(text || '');
+  const base = level === 0 ? 140 : level === 1 ? 90 : 50;
+  const width = Math.max(base, Math.min(280, normalized.length * 6));
+  const height = level === 2 ? 36 : 56;
+  return { width, height };
+}
+
+export class SpatialNodeManager {
   constructor() {
-    this.nodes = new Map();
-    this.edges = [];
-    this.timeline = { minSequence: 0, maxSequence: 0 };
+    this.nodes = [];
+    this.nodeIndex = new Map();
   }
 
-  loadTopology(nodesArray = [], edgesArray = []) {
-    this.nodes.clear();
-    this.edges = [];
+  /**
+   * Clear active coordinate memory buffers
+   */
+  clear() {
+    this.nodes = [];
+    this.nodeIndex.clear();
+  }
 
-    let minSeq = Infinity;
-    let maxSeq = -Infinity;
+  /**
+   * Transforms hierarchical memory blocks into polar-projected spatial coordinates
+   * Expected block shape:
+   * { id, level, summary, content, title, parentId, lastMessageSummarizedId }
+   */
+  populateFromHierarchy(blocks = []) {
+this.clear();
 
-    // Load canonical nodes with integrated temporal sequence tracking
-    nodesArray.forEach((node, index) => {
-      if (!node.id) return;
+cathedralBus.publish("spatial.rebuild.start", {
+  count: blocks?.length ?? 0,
+  source: "populateFromHierarchy"
+});
 
-      // Fallback to array iteration sequence if not explicitly provided
-      const sequence = node.sequence !== undefined ? Number(node.sequence) : (index + 1);
-      if (sequence < minSeq) minSeq = sequence;
-      if (sequence > maxSeq) maxSeq = sequence;
+    if (!Array.isArray(blocks) || blocks.length === 0) {
+      return this.nodes;
+    }
 
-      this.nodes.set(node.id, {
-        id: node.id,
-        x: node.x || 0,
-        y: node.y || 0,
-        label: node.label || 'Telemetry Node',
-        role: node.role || 'System',
-        radius: node.radius || 8,
-        sequence: sequence,
-        createdAt: node.createdAt || `seq:${sequence}`,
-        sourceType: node.sourceType || 'message',
-        metadata: {
-          level: node.metadata?.level || 1,
-          parentId: node.metadata?.parentId || null,
-          payload: node.metadata?.payload || 'Baseline Log'
-        }
-      });
-    });
+    const grouped = new Map();
 
-    // Load graph structural relationships mapped chronologically
-    edgesArray.forEach(edge => {
-      if (this.nodes.has(edge.source) && this.nodes.has(edge.target)) {
-        const sourceNode = this.nodes.get(edge.source);
-        const targetNode = this.nodes.get(edge.target);
+    for (const block of blocks) {
+      if (!block || typeof block !== 'object') continue;
 
-        // Edge inherits the latest structural sequence number between its target endpoints if undefined
-        const edgeSeq = edge.sequence !== undefined 
-          ? Number(edge.sequence) 
-          : Math.max(sourceNode.sequence, targetNode.sequence);
-
-        if (edgeSeq < minSeq) minSeq = edgeSeq;
-        if (edgeSeq > maxSeq) maxSeq = edgeSeq;
-
-        this.edges.push({
-          source: edge.source,
-          target: edge.target,
-          type: edge.type || 'structural',
-          sequence: edgeSeq,
-          createdAt: edge.createdAt || `seq:${edgeSeq}`
-        });
+      const level = Number(block.level ?? 2);
+      if (!grouped.has(level)) {
+        grouped.set(level, []);
       }
-    });
+      grouped.get(level).push(block);
+    }
 
-    this.timeline = {
-      minSequence: minSeq === Infinity ? 0 : minSeq,
-      maxSequence: maxSeq === -Infinity ? 0 : maxSeq
-    };
+    // Sort levels numerically so rendering/layout remains deterministic
+    const sortedLevels = [...grouped.entries()].sort((a, b) => a[0] - b[0]);
+
+    for (const [level, items] of sortedLevels) {
+      const layout = LEVEL_LAYOUT[level] || LEVEL_LAYOUT[2];
+      const count = Math.max(1, items.length);
+
+      items.forEach((block, index) => {
+        const angle = (Math.PI * 2 * index) / count;
+        const jitter = level === 2 ? (index % 7) * 12 : 0;
+        const radius = layout.radius + jitter;
+        const pos = polarToCartesian(angle, radius);
+
+        const text =
+          block.summary ||
+          block.content ||
+          block.title ||
+          `Node ${block.id || index}`;
+
+        const size = estimateNodeSize(text, level);
+
+        const node = {
+          id:
+            block.id ||
+            block.lastMessageSummarizedId ||
+            `node_${level}_${index}`,
+          parentId: block.parentId || null,
+          level,
+          text,
+          raw: block,
+          x: pos.x,
+          y: pos.y,
+          width: size.width,
+          height: size.height,
+          targetZoom: LEVEL_ZOOM_TARGETS[level] || LEVEL_ZOOM_TARGETS[2]
+        };
+
+        this.nodes.push(node);
+        this.nodeIndex.set(node.id, node);
+      });
+    }
+cathedralBus.publish("spatial.rebuild.complete", {
+  nodeCount: this.nodes.length,
+  source: "populateFromHierarchy"
+});
+
+    return this.nodes;
   }
 
-  getTimelineBounds() {
-    return { ...this.timeline };
+  /**
+   * Level-of-detail visibility filter aligned to ZoomEngine thresholds
+   */
+  getVisibleNodes(currentZ) {
+    if (currentZ < 3) {
+      return this.nodes.filter((n) => n.level === 0);
+    }
+
+    if (currentZ < 7) {
+      return this.nodes.filter((n) => n.level <= 1);
+    }
+
+    return this.nodes;
   }
 
-  // Phase 1 / 2 Core Selectors
-  getVisibleNodes(cameraState) {
-    return Array.from(this.nodes.values());
-  }
+  /**
+   * Hit-test a world-space coordinate against visible node bounds
+   */
+  hitTest(worldX, worldY, currentZ) {
+    const visible = this.getVisibleNodes(currentZ);
 
-  getVisibleEdges() {
-    return this.edges;
-  }
+    for (let i = visible.length - 1; i >= 0; i--) {
+      const n = visible[i];
+      const left = n.x - n.width / 2;
+      const right = n.x + n.width / 2;
+      const top = n.y - n.height / 2;
+      const bottom = n.y + n.height / 2;
 
-  // Phase 3 Time-Slicing Window Selectors
-  getVisibleNodesAtTime(cameraState, cursor) {
-    const allNodes = this.getVisibleNodes(cameraState);
-    if (cursor === null) return allNodes;
-    return allNodes.filter(n => n.sequence <= cursor);
-  }
-
-  getVisibleEdgesAtTime(cameraState, cursor) {
-    if (cursor === null) return this.getVisibleEdges();
-
-    return this.edges
-      .filter(edge => edge.sequence <= cursor)
-      .map(edge => ({
-        sourceNode: this.nodes.get(edge.source),
-        targetNode: this.nodes.get(edge.target),
-        type: edge.type
-      }))
-      .filter(e => e.sourceNode && e.sourceNode.sequence <= cursor && e.targetNode && e.targetNode.sequence <= cursor);
-  }
-
-  hitTest(worldX, worldY, currentZoom, options = {}) {
-    const { playbackCursor = null, replayMode = false } = options;
-
-    const visible = replayMode
-      ? this.getVisibleNodesAtTime(currentZoom, playbackCursor)
-      : this.getVisibleNodes(currentZoom);
-
-    // Unpack the scalar zoom level safely whether an object or primitive is passed
-    const z = typeof currentZoom === 'object' && currentZoom !== null ? currentZoom.z : currentZoom;
-
-    for (const node of visible) {
-      const dx = node.x - worldX;
-      const dy = node.y - worldY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const hitTolerance = node.radius + (2 / z);
-
-      if (distance <= hitTolerance) {
-        return node;
+      if (
+        worldX >= left &&
+        worldX <= right &&
+        worldY >= top &&
+        worldY <= bottom
+      ) {
+        return n;
       }
     }
+
     return null;
   }
 }
-
-module.exports = SpatialNodeManager;
-

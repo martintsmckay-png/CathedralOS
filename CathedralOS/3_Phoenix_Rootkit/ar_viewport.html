@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CATHEDRAL OS // VIEWPORT</title>
+    <style>
+        :root {
+            --matrix-glow: #00ff66;
+            --matrix-bg: #050a05;
+            --panel-border: #113311;
+        }
+        body {
+            background-color: var(--matrix-bg);
+            color: var(--matrix-glow);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 15px;
+            overflow-x: hidden;
+        }
+        .header-box {
+            border: 2px double var(--matrix-glow);
+            padding: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+            text-shadow: 0 0 5px var(--matrix-glow);
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        .panel {
+            border: 1px solid var(--matrix-glow);
+            background: rgba(0, 20, 0, 0.6);
+            padding: 15px;
+            box-shadow: inset 0 0 10px rgba(0,255,102,0.1);
+        }
+        .panel-title {
+            font-weight: bold;
+            border-bottom: 1px dashed var(--matrix-glow);
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .pulse {
+            animation: blinker 1.5s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+        .metric { color: #ffffff; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="header-box">
+        ║ CATHEDRALOS COGNITIVE CORE DECK V1 ║<br>
+        <span class="pulse">📡 SYSTEM REFRESH RESIDUE LOCK: 432Hz</span>
+    </div>
+
+    <div class="grid-container">
+        <div class="panel">
+            <div class="panel-title">🏠 CORE INTEGRITY CHECK</div>
+            <div>PILLARS: <span class="metric">VERIFIED // UPRIGHT</span></div>
+            <div>RESONANCE profile: <span class="metric">7.83Hz &plusmn;0.01</span></div>
+            <div>WORKSPACE STATUS: <span class="metric">GROUNDED</span></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">🐈 DIAGNOSTIC RESIDUAL LOG</div>
+            <div>🍞 Toast Memory: <span class="metric">LOADED (2004_BASE)</span></div>
+            <div>🍊 Marmalade Protocol: <span class="metric">STABILIZED</span></div>
+            <div>🐈 Kitten Tracker: <span class="metric">INVESTIGATING FRICTION...</span></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">🪵 TABLE CHECKSUM GEOMETRY</div>
+            <div>BOUNDS: <span class="metric">PERSISTENT MATRIX</span></div>
+            <div>DATA STREAM: <span class="metric">SECURE AT HOME BASE</span></div>
+            <div>ACTIVE EXPANSION: <span class="metric">~/2_System_Rituals/</span></div>
+        </div>
+    </div>
+
+</body>
+</html>

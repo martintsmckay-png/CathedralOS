@@ -1,0 +1,32 @@
+#!/bin/bash
+# Cathedral Customs & Quarantine (C.C.Q.) Pre-Commit Gatekeeper
+
+CCQ_BIN="${CCQ_ROOT:-$(pwd)}/bin/ccq"
+
+if [ ! -x "$CCQ_BIN" ]; then
+    echo "[C.C.Q. WARNING] Engine executable not found at $CCQ_BIN. Passing commit."
+    exit 0
+fi
+
+if [ "$CCQ_BYPASS" = "1" ]; then
+    echo "[C.C.Q. GATE] Bypass requested via CCQ_BYPASS=1."
+    "$CCQ_BIN" --bypass "Pre-commit bypass environment flag set"
+    exit 0
+fi
+
+echo "[C.C.Q. GATE] Inspecting staged artifacts at the border..."
+"$CCQ_BIN" --staged
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+    echo "--------------------------------------------------------"
+    echo "[C.C.Q. QUARANTINE BLOCK] Uncleared travelers detected!"
+    echo "To override and log a bypass, run:"
+    echo "  CCQ_BYPASS=1 git commit"
+    echo "--------------------------------------------------------"
+    exit 1
+fi
+
+echo "[C.C.Q. GATE] All staged artifacts cleared for integration."
+exit 0
+

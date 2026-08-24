@@ -1,0 +1,371 @@
+From 95429c299e28d8e2a26fb7a6a589fb0d4aa21326 Mon Sep 17 00:00:00 2001
+From: Martin McKay <martintsmckay@gmail.com>
+Date: Sun, 5 Jul 2026 00:53:48 -0500
+Subject: [PATCH 3/4] feat(zoom): decouple replay mutations via read-only
+ render states
+
+---
+ src/main.js                                  | 95 +++++---------------
+ src/subsystems/precog-runtime/zoom-engine.js | 65 ++++++++++----
+ 2 files changed, 69 insertions(+), 91 deletions(-)
+
+diff --git a/src/main.js b/src/main.js
+index 24c2f5b3..96108165 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -31,48 +31,29 @@ window.CATHEDRALCHRONICLEWEAVER      = new ChronicleWeaver(window.CATHEDRALMEMOR
+ window.CATHEDRALCLUSTERDIPLOMACY     = new ClusterDiplomacy(spatializer);
+ 
+ window.CATHEDRALWEATHERORACLE        = new SemanticWeatherOracle(
+-    spatializer,
+-    CATHEDRALDRIFTFORECAST,
+-    CATHEDRALCLUSTERDIPLOMACY,
+-    CATHEDRALCLUSTERDIALOGUE
++    spatializer, CATHEDRALDRIFTFORECAST, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALCLUSTERDIALOGUE
+ );
+-
+ window.CATHEDRALPANTRYINDEX          = new PantryHyperIndex(window.CATHEDRALMEMORYPANTRY);
+-
+-window.CATHEDRALCLUSTERCONGRESS      = new ClusterCongress(
+-    spatializer,
+-    CATHEDRALCLUSTERDIPLOMACY,
+-    CATHEDRALWEATHERORACLE
+-);
+-
++window.CATHEDRALCLUSTERCONGRESS      = new ClusterCongress(spatializer, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALWEATHERORACLE);
+ window.CATHEDRALCLIMATECARTOGRAPHER  = new SemanticClimateCartographer(
+-    spatializer,
+-    CATHEDRALDRIFTFORECAST,
+-    CATHEDRALCLUSTERDIPLOMACY,
+-    CATHEDRALWEATHERORACLE
++    spatializer, CATHEDRALDRIFTFORECAST, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALWEATHERORACLE
+ );
+-
+ window.CATHEDRALPANTRYCOMPRESSION_V2 = new PantryCompressionV2(
+-    window.CATHEDRALMEMORYPANTRY,
+-    window.CATHEDRALPANTRYINDEX,
+-    window.CATHEDRALCLIMATECARTOGRAPHER,
+-    window.CATHEDRALWEATHERORACLE
++    window.CATHEDRALMEMORYPANTRY, window.CATHEDRALPANTRYINDEX, window.CATHEDRALCLIMATECARTOGRAPHER, window.CATHEDRALWEATHERORACLE
+ );
+-
+ window.CATHEDRALCLUSTERFESTIVAL      = new ClusterFestival(
+-    spatializer,
+-    CATHEDRALCLUSTERDIPLOMACY,
+-    CATHEDRALWEATHERORACLE,
+-    CATHEDRALCLIMATECARTOGRAPHER
++    spatializer, CATHEDRALCLUSTERDIPLOMACY, CATHEDRALWEATHERORACLE, CATHEDRALCLIMATECARTOGRAPHER
+ );
+ 
+ // ==========================================
+-// INDEPENDENT EVENT BUS BUS-HOOK INJECTION
++// INDEPENDENT EVENT BUS HOOK INJECTION
+ // ==========================================
+-// FIXED: Subscription moved outside the loop to prevent catastrophic memory leak.
++// RESOLVED: Wire the event bus directly to the isolated projection assignment layer
+ cathedralBus.subscribe("replay.frame", (frame) => {
+     if (window.replayController.isReplaying || timeKernel.mode === "replay") {
+-        zoomEngine.applyReplayFrame(frame);
++        zoomEngine.setReplayFrame(frame);
++    } else {
++        zoomEngine.clearReplayMode();
+     }
+ });
+ 
+@@ -80,7 +61,7 @@ cathedralBus.subscribe("replay.frame", (frame) => {
+ // CENTRALIZED TICK PIPELINE (SYNCHRONIZED)
+ // ==========================================
+ setInterval(() => {
+-    // Check global execution authority
++    // Note: The simulation plane can run continuously, but we hold ticks if the scheduler requests a pause
+     if (!timeKernel.canSimulate() || window.replayController.isReplaying) return;
+ 
+     const clusters = spatializer.buildClusters();
+@@ -92,7 +73,6 @@ setInterval(() => {
+ 
+     if (forecast) {
+         cathedralBus.publish("drift.forecast.updated", forecast);
+-
+         CATHEDRALPANTRYWRITER.write(  
+             "Drift Storm Forecast",  
+             `[FORECAST]\nSeverity: ${forecast.severity}\nSlope: ${forecast.slope}`  
+@@ -101,7 +81,6 @@ setInterval(() => {
+         const shelter = CATHEDRALSTORMSHELTER.engage(forecast);  
+         if (shelter) {  
+             cathedralBus.publish("storm.shelter.engaged", shelter);  
+-
+             CATHEDRALPANTRYWRITER.write(  
+                 "Storm Shelter Protocol",  
+                 `[SHELTER]\nSeverity: ${shelter.severity}\nClusters Shielded: ${shelter.clusters}`  
+@@ -114,14 +93,12 @@ setInterval(() => {
+     // 2. Storylines
+     clusters.forEach((cluster, index) => {
+         spatializer.initStoryline(index);
+-
+         const driftPressure = cluster.reduce((acc, id) => {  
+             const n = spatializer.getNode(id);  
+             return acc + spatializer.getDriftPressure(n.x, n.y);  
+         }, 0) / cluster.length;  
+ 
+         spatializer.advanceStoryline(index, cluster, driftPressure);  
+-
+         const story = spatializer.clusterStorylines.get(index);  
+ 
+         CATHEDRALPANTRYWRITER.write(  
+@@ -130,32 +107,19 @@ setInterval(() => {
+         );
+     });
+ 
+-    cathedralBus.publish("semantic.storylines.updated", {
+-        storylines: spatializer.clusterStorylines
+-    });
++    cathedralBus.publish("semantic.storylines.updated", { storylines: spatializer.clusterStorylines });
+ 
+-    // 3. Dialogue
++    // 3. Dialogue & Diplomatic Exchange Loop
+     const dialogues = CATHEDRALCLUSTERDIALOGUE.generateDialogue(clusters);
+-
+     if (dialogues.length > 0) {
+         cathedralBus.publish("semantic.dialogue", { dialogues });
+-
+         dialogues.forEach(d => {  
+             const storyA = spatializer.clusterStorylines.get(d.from);  
+             const storyB = spatializer.clusterStorylines.get(d.to);  
+-
+             const driftPressure = d.tone === "urgent" ? 3.5 : d.tone === "concerned" ? 2.0 : 0.5;  
+ 
+             CATHEDRALCLUSTERDIPLOMACY.initRelation(d.from, d.to);  
+-
+-            CATHEDRALCLUSTERDIPLOMACY.updateRelation(  
+-                d.from,  
+-                d.to,  
+-                d.tone,  
+-                driftPressure,  
+-                storyA?.state,  
+-                storyB?.state  
+-            );  
++            CATHEDRALCLUSTERDIPLOMACY.updateRelation(d.from, d.to, d.tone, driftPressure, storyA?.state, storyB?.state);  
+ 
+             CATHEDRALPANTRYWRITER.write(  
+                 `Cluster Dialogue ${d.from + 1} → ${d.to + 1}`,  
+@@ -164,9 +128,7 @@ setInterval(() => {
+         });
+     }
+ 
+-    cathedralBus.publish("cluster.diplomacy.updated", {
+-        relations: CATHEDRALCLUSTERDIPLOMACY.relations
+-    });
++    cathedralBus.publish("cluster.diplomacy.updated", { relations: CATHEDRALCLUSTERDIPLOMACY.relations });
+ 
+     // ==================================
+     // REPLAY FRAME CAPTURE LAYER
+@@ -179,20 +141,16 @@ setInterval(() => {
+ }, 2500);
+ 
+ // ==========================================
+-// MACRO CYCLES
++// MACRO CYCLES (4000ms)
+ // ==========================================
+ setInterval(() => {
+     if (!timeKernel.canSimulate()) return;
+ 
+     CATHEDRALPANTRYINDEX.rebuild();
+-
+-    cathedralBus.publish("pantry.index.updated", {
+-        summary: CATHEDRALPANTRYINDEX.summarize()
+-    });
++    cathedralBus.publish("pantry.index.updated", { summary: CATHEDRALPANTRYINDEX.summarize() });
+ 
+     if (CATHEDRALCHRONICLEWEAVER.shouldWeave()) {
+         const chapter = CATHEDRALCHRONICLEWEAVER.weave();
+-
+         if (chapter) {  
+             CATHEDRALPANTRYWRITER.write("Cathedral Chronicle", chapter);  
+             cathedralBus.publish("pantry.chronicle.created", { chapter });  
+@@ -201,7 +159,7 @@ setInterval(() => {
+ }, 4000);
+ 
+ // ==========================================
+-// HIGH LEVEL CYCLES
++// HIGH LEVEL CYCLES (6000ms)
+ // ==========================================
+ setInterval(() => {
+     if (!timeKernel.canSimulate()) return;
+@@ -214,29 +172,17 @@ setInterval(() => {
+ 
+     const session = CATHEDRALCLUSTERCONGRESS.convene();
+     cathedralBus.publish("cluster.congress.session", session);
+-
+-    // FIXED: Wrapped template literals correctly
+-    CATHEDRALPANTRYWRITER.write(
+-        "Cluster Ritual Congress",
+-        `[CONGRESS]\nDecrees:\n${session.decrees.join("\n")}`
+-    );
++    CATHEDRALPANTRYWRITER.write("Cluster Ritual Congress", `[CONGRESS]\nDecrees:\n${session.decrees.join("\n")}`);
+ 
+     const map = CATHEDRALCLIMATECARTOGRAPHER.buildClimateMap();
+     const layers = CATHEDRALCLIMATECARTOGRAPHER.synthesizeLayer(map);
+ 
+     cathedralBus.publish("climate.map.updated", { layers });
+-
+-    // FIXED: Wrapped template literals correctly
+-    CATHEDRALPANTRYWRITER.write(
+-        "Semantic Climate Map",
+-        `[CLIMATE]\n${layers.map(l => `Cluster ${l.cluster + 1} → ${l.biome}`).join("\n")}`
+-    );
++    CATHEDRALPANTRYWRITER.write("Semantic Climate Map", `[CLIMATE]\n${layers.map(l => `Cluster ${l.cluster + 1} → ${l.biome}`).join("\n")}`);
+ 
+     const events = CATHEDRALCLUSTERFESTIVAL.evaluateFestivalTriggers();
+-
+     events.forEach(event => {
+         const festivalText = CATHEDRALCLUSTERFESTIVAL.generateFestival(event);
+-
+         if (festivalText) {  
+             cathedralBus.publish("cluster.festival", { text: festivalText });  
+             CATHEDRALPANTRYWRITER.write("Cluster Festival", `[FESTIVAL]\n${festivalText}`);  
+@@ -245,7 +191,6 @@ setInterval(() => {
+ 
+     if (CATHEDRALPANTRYCOMPRESSION_V2.shouldCompress()) {
+         const crystal = CATHEDRALPANTRYCOMPRESSION_V2.compress();
+-
+         if (crystal) {  
+             CATHEDRALPANTRYWRITER.write("Memory Crystal", crystal);  
+             cathedralBus.publish("pantry.crystal.created", { crystal });  
+diff --git a/src/subsystems/precog-runtime/zoom-engine.js b/src/subsystems/precog-runtime/zoom-engine.js
+index 5f2bc3ad..7216034b 100644
+--- a/src/subsystems/precog-runtime/zoom-engine.js
++++ b/src/subsystems/precog-runtime/zoom-engine.js
+@@ -15,10 +15,14 @@ export class ZoomEngine {
+     // Hierarchical node bridge (SpatialNodeManager)
+     this.nodeManager = spatialNodeManager || null;
+ 
+-    // Camera state
++    // Camera state (Live Simulation Owned)
+     this.currentState = { x: 0, y: 0, z: 4.0 };
+     this.targetState = { x: 0, y: 0, z: 4.0 };
+ 
++    // ISOLATED: Replay state layers to prevent simulation plane corruption
++    this.replayFrame = null;
++    this.replayMode = false;
++
+     // Animation tuning
+     this.lerpFactor = 0.08;
+     this.isAnimating = false;
+@@ -93,12 +97,41 @@ export class ZoomEngine {
+     requestAnimationFrame(() => this.update());
+   }
+ 
++  /**
++   * FIXED: State Layering Hook
++   * Isolates the playback snapshot instead of mutating runtime truth mid-frame
++   */
++  setReplayFrame(frame) {
++    this.replayFrame = frame;
++    if (frame && (frame.camera || frame.nodes)) {
++      this.replayMode = true;
++    } else {
++      this.replayMode = false;
++    }
++    this.render();
++  }
++
++  /**
++   * Restores regular simulation perspective rendering
++   */
++  clearReplayMode() {
++    this.replayMode = false;
++    this.replayFrame = null;
++    this.render();
++  }
++
+   /**
+    * Full render pass
+    */
+   render() {
+     const ctx = this.ctx;
+-    const { x, y, z } = this.currentState;
++
++    // FIXED: Select render state source non-destructively
++    const renderCamera = (this.replayMode && this.replayFrame?.camera)
++      ? this.replayFrame.camera
++      : this.currentState;
++
++    const { x, y, z } = renderCamera;
+ 
+     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+     ctx.save();
+@@ -116,15 +149,19 @@ export class ZoomEngine {
+ 
+     // Draw substrate grid beneath nodes
+     if (this.fabricCanvas) {
+-      this.fabricCanvas.drawInfiniteGrid(this.currentState);
++      this.fabricCanvas.drawInfiniteGrid(renderCamera);
+     }
+ 
+-    const visibleNodes = this.nodeManager
+-      ? this.nodeManager.getVisibleNodes(z)
+-      : [];
++    // FIXED: Render spatial nodes from the isolated replay history or live context
++    let visibleNodes = [];
++    if (this.replayMode && this.replayFrame?.nodes) {
++      visibleNodes = this.replayFrame.nodes;
++    } else if (this.nodeManager) {
++      visibleNodes = this.nodeManager.getVisibleNodes(z);
++    }
+ 
+     for (const node of visibleNodes) {
+-      this.drawNode(node, currentLOD);
++      this.drawNode(node, currentLOD, renderCamera);
+     }
+ 
+     ctx.restore();
+@@ -133,22 +170,19 @@ export class ZoomEngine {
+   /**
+    * Node renderer for each semantic zoom layer
+    */
+-  drawNode(node, lod) {
+-    const ctx = this.ctx;
+-    const currentZ = this.currentState.z;
+-
++  drawNode(node, lod, renderCamera) {
+     if (lod === 'macro_summary' && node.level === 0) {
+-      this.drawMacroNode(node, currentZ);
++      this.drawMacroNode(node, renderCamera.z);
+       return;
+     }
+ 
+     if (lod === 'thematic_cluster' && node.level <= 1) {
+-      this.drawThemeNode(node, currentZ);
++      this.drawThemeNode(node, renderCamera.z);
+       return;
+     }
+ 
+     if (lod === 'raw_message') {
+-      this.drawMessageNode(node, currentZ);
++      this.drawMessageNode(node, renderCamera.z);
+     }
+   }
+ 
+@@ -254,14 +288,12 @@ export class ZoomEngine {
+   drawRoundedRect(x, y, width, height, radius) {
+     const ctx = this.ctx;
+ 
+-    // If roundRect exists in the runtime, use it
+     if (typeof ctx.roundRect === 'function') {
+       ctx.beginPath();
+       ctx.roundRect(x, y, width, height, radius);
+       return;
+     }
+ 
+-    // Fallback path for older environments
+     const r = Math.min(radius, width / 2, height / 2);
+ 
+     ctx.beginPath();
+@@ -292,3 +324,4 @@ export class ZoomEngine {
+     return `${text.slice(0, maxLength - 3)}...`;
+   }
+ }
++
+-- 
+2.54.0
+

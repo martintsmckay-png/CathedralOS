@@ -1,0 +1,9 @@
+.bash_history
+.bashrc
+.gitconfig
+.python_history
+.ssh/
+.termux/
+.termux_authinfo
+server.log
+test_run.log

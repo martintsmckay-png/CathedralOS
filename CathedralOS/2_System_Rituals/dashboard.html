@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CathedralOS // Telemetry Hub</title>
+    <style>
+        :root { 
+            --matrix-glow: #ff8a00; 
+            --matrix-bg: #050505; 
+            --matrix-dim: #333; 
+            --matrix-alert: #ff3333;
+            --matrix-success: #00ff66;
+        }
+        body { 
+            background-color: var(--matrix-bg); 
+            color: #e0e0e0; 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 20px; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            border-left: 2px solid var(--matrix-glow);
+        }
+        h1 { 
+            color: var(--matrix-glow); 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            font-size: 1.6em; 
+            border-bottom: 1px dashed var(--matrix-glow); 
+            padding-bottom: 15px; 
+            margin-bottom: 25px;
+        }
+        .pulse { animation: blinker 2s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(255, 138, 0, 0.03);
+            border: 1px solid var(--matrix-dim);
+            padding: 25px;
+            position: relative;
+        }
+        .panel-header {
+            color: var(--matrix-glow);
+            font-size: 0.9em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed var(--matrix-dim);
+            padding-bottom: 5px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 0.95em;
+        }
+        .metric-label { color: #888; }
+        .metric-value { color: #fff; font-weight: bold; }
+        
+        .status-stable { color: var(--matrix-success); }
+        .status-breached { color: var(--matrix-alert); animation: blinker 1s linear infinite; }
+
+        /* Real-time canvas wave graph */
+        .wave-container {
+            width: 100%;
+            height: 80px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #222;
+            margin-top: 10px;
+        }
+
+        .terminal-log {
+            background: #020202;
+            border: 1px solid var(--matrix-dim);
+            padding: 15px;
+            font-size: 0.85em;
+            color: #aaa;
+            height: 120px;
+            overflow-y: hidden;
+            line-height: 1.6;
+        }
+        .log-entry { margin-bottom: 4px; }
+
+        .nav-back {
+            display: inline-block;
+            color: #888;
+            text-decoration: none;
+            border: 1px solid #444;
+            padding: 10px 15px;
+            font-size: 0.9em;
+            transition: 0.2s;
+            text-transform: uppercase;
+        }
+        .nav-back:hover { border-color: var(--matrix-glow); color: var(--matrix-glow); }
+    </style>
+</head>
+<body>
+
+    <h1>📡 Telemetry Hub <span class="pulse">:: STREAM_ACTIVE</span></h1>
+
+    <div class="dashboard-grid">
+        
+        <div class="panel">
+            <div class="panel-header">💎 Alchemy & Obsidian Stratum</div>
+            <div class="metric-row">
+                <span class="metric-label">Target Material:</span>
+                <span class="metric-value">lydia@sidewalk</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Alchemical State:</span>
+                <span class="metric-value" style="color: #ffaa44;">Marmalade Quartz</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Chalk Epicenter pH:</span>
+                <span class="metric-value" id="ph-val">7.00</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Obsidian Armor:</span>
+                <span class="metric-value status-stable">HARDENED</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">🍊 MARM Overflow Ritual</div>
+            <div class="metric-row">
+                <span class="metric-label">Diverted Units:</span>
+                <span class="metric-value">15 MARM</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Flow Destination:</span>
+                <span class="metric-value">sidewalk_chalk</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Yogurt Core state:</span>
+                <span class="metric-value status-stable" id="yogurt-status">STABLE</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Resonance Error:</span>
+                <span class="metric-value">0.00%</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">🧠 Device Environmental Array</div>
+            <div class="metric-row">
+                <span class="metric-label">Schumann Resonance:</span>
+                <span class="metric-value">7.83 Hz (VALID)</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Time Stratum Error:</span>
+                <span class="metric-value">&lt; 7.83μs</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Allocated Heap Size:</span>
+                <span class="metric-value" id="heap-val">-- MB</span>
+            </div>
+            <canvas id="waveCanvas" class="wave-container"></canvas>
+        </div>
+
+    </div>
+
+    <div class="panel" style="margin-bottom: 30px;">
+        <div class="panel-header">📜 Live Signal Stream</div>
+        <div class="terminal-log" id="log-box">
+            <div class="log-entry" style="color: var(--matrix-glow)">[SYSTEM] Initializing parallel stream listener...</div>
+        </div>
+    </div>
+
+    <a href="control_panel.html" class="nav-back">← Close Telemetry Terminal</a>
+
+    <script>
+        // Set real heap size memory trace if browser allows it
+        if (performance.memory) {
+            document.getElementById('heap-val').innerText = Math.round(performance.memory.usedJSHeapSize / 1048576) + " MB";
+        } else {
+            document.getElementById('heap-val').innerText = "24.4 MB"; 
+        }
+
+        // Live ticking log system
+        const logBox = document.getElementById('log-box');
+        const phrases = [
+            "[OWL] Timestamps synchronized within boundary constraints.",
+            "[MARM] Diverting residual metrics to chalk layer matrix.",
+            "[ALCHEMY] Crystallization matrix scanning at 42.3314°N.",
+            "[BUFFER] Obsidian stratums matching local validation configurations.",
+            "[YOGURT] Pressure indexes normalizing across table coordinates.",
+            "[SYSTEM] Votive candles tracking within standard light wave ranges."
+        ];
+
+        function addLog() {
+            const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+            const timeStr = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = "log-entry";
+            entry.innerHTML = `<span style="color: #555;">[${timeStr}]</span> ${randomPhrase}`;
+            logBox.appendChild(entry);
+            
+            if (logBox.children.length > 5) {
+                logBox.removeChild(logBox.children[0]);
+            }
+            logBox.scrollTop = logBox.scrollHeight;
+
+            // Spookily fluctuate pH slightly around optimal values
+            document.getElementById('ph-val').innerText = (6.95 + Math.random() * 0.1).toFixed(2);
+
+            // Random micro-glitch scenario for Yogurt stability
+            if(Math.random() > 0.92) {
+                const y = document.getElementById('yogurt-status');
+                y.className = "status-breached";
+                y.innerText = "BREACH RISK";
+                setTimeout(() => {
+                    y.className = "status-stable";
+                    y.innerText = "STABLE";
+                }, 1200);
+            }
+        }
+        setInterval(addLog, 2500);
+
+        // Canvas Telemetry Oscillator Animation
+        const canvas = document.getElementById('waveCanvas');
+        const ctx = canvas.getContext('2d');
+        let offset = 0;
+
+        function drawWave() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#ff8a00';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            
+            for (let x = 0; x < canvas.width; x++) {
+                // Sine oscillator processing matching matrix heartbeat
+                let y = canvas.height / 2 + Math.sin(x * 0.05 + offset) * 15 + Math.sin(x * 0.01 + offset) * 5;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            offset += 0.07;
+            requestAnimationFrame(drawWave);
+        }
+        
+        // Resize canvas correctly for device screens
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+        drawWave();
+    </script>
+</body>
+</html>

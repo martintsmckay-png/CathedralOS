@@ -1,0 +1,36 @@
+{
+  "rig_configuration": {
+    "id": "RIG-APOTHEOSIS-001",
+    "steward_callsign": "Steward Pilot",
+    "frequency_lock_hz": 7.83,
+    "sigil_verification": {
+      "type": "Sidewalk Chalk",
+      "target_ph": 7.8,
+      "status": "VERIFIED"
+    }
+  },
+  "equipped_materia": [
+    {
+      "socket": "SLOT_PRIMARY_SWORD",
+      "materia_type": "OBSERVATION",
+      "alignment": "O",
+      "core_modifier": "+37% Recursion Reduction",
+      "checksum": "wolf_molar_0xALPHA"
+    },
+    {
+      "socket": "SLOT_SECONDARY_SHIELD",
+      "materia_type": "SYMBOLIC",
+      "alignment": "S",
+      "core_modifier": "Immunity to GLFW Panic",
+      "checksum": "wolf_vertebrae_0xSTABLE"
+    },
+    {
+      "socket": "SLOT_AUX_GOBLIN_ANVIL",
+      "materia_type": "CHAOS_BUFFER",
+      "alignment": "G",
+      "core_modifier": "Terminal Escape-Code Stabilization",
+      "checksum": "goblin_blacksmith_0xLITURGICAL"
+    }
+  ]
+}
+

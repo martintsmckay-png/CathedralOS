@@ -1,64 +1,58 @@
 // src/subsystems/precog-runtime/zoom-engine.js
-// CathedralOS Native Module — Camera / Semantic Zoom / 2D Canvas Render Engine (Phase 3B: CommonJS Replay)
+// CathedralOS Native Module — Camera / Semantic Zoom / Node Render Engine
 
 const Z_THRESHOLD_MACRO = 3.0;
 const Z_THRESHOLD_MESSAGE = 7.0;
 
 class ZoomEngine {
-  constructor(canvas, canvasViewportControllerInstance, spatialNodeManager = null) {
+  constructor(canvas, fabricCanvasSetupInstance, spatialNodeManager = null) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
 
-    this.viewport = canvasViewportControllerInstance || null;
+    // Rendering substrate / infinite grid provider
+    this.fabricCanvas = fabricCanvasSetupInstance || null;
+
+    // Hierarchical node bridge (SpatialNodeManager)
     this.nodeManager = spatialNodeManager || null;
 
+    // Camera state (Live Simulation Owned)
     this.currentState = { x: 0, y: 0, z: 4.0 };
     this.targetState = { x: 0, y: 0, z: 4.0 };
 
+    // ISOLATED: Replay state layers to prevent simulation plane corruption
+    this.replayFrame = null;
+    this.replayMode = false;
+
+    // Animation tuning
     this.lerpFactor = 0.08;
     this.isAnimating = false;
-
-    this.selectedNodeId = null;
-
-    // Phase 3B Temporal Replay State Properties
-    this.replayMode = false;
-    this.playbackCursor = null;
-    this.playbackBounds = { minSequence: 0, maxSequence: 0 };
   }
 
+  /**
+   * Optional late binding if the node manager is created after the engine
+   */
   attachNodeManager(nodeManager) {
     this.nodeManager = nodeManager;
   }
 
-  setSelectedNode(node) {
-    this.selectedNodeId = node?.id || null;
-    this.render();
-  }
-
-  // Phase 3B Replay Control Hooks called by Orchestrator
-  setReplayMode(enabled) {
-    this.replayMode = Boolean(enabled);
-    this.render();
-  }
-
-  setPlaybackCursor(cursor) {
-    this.playbackCursor = cursor != null ? Number(cursor) : null;
-    this.render();
-  }
-
-  setPlaybackBounds(bounds = {}) {
-    this.playbackBounds = {
-      minSequence: Number(bounds.minSequence ?? 0),
-      maxSequence: Number(bounds.maxSequence ?? 0)
-    };
-  }
-
+  /**
+   * Semantic zoom / LOD resolver
+   */
   getLevelOfDetail(currentZ) {
-    if (currentZ < Z_THRESHOLD_MACRO) return 'macro_summary';
-    if (currentZ < Z_THRESHOLD_MESSAGE) return 'thematic_cluster';
+    if (currentZ < Z_THRESHOLD_MACRO) {
+      return 'macro_summary';
+    }
+
+    if (currentZ < Z_THRESHOLD_MESSAGE) {
+      return 'thematic_cluster';
+    }
+
     return 'raw_message';
   }
 
+  /**
+   * Camera fly-to target setter
+   */
   flyTo(targetX, targetY, targetZ = this.targetState.z) {
     this.targetState = {
       x: targetX,
@@ -72,46 +66,9 @@ class ZoomEngine {
     }
   }
 
-  focusNode(node) {
-    if (!node) return;
-    this.flyTo(node.x, node.y, node.targetZoom || this.targetState.z);
-  }
-
-  panBy(dx, dy) {
-    this.currentState.x -= dx / this.currentState.z;
-    this.currentState.y -= dy / this.currentState.z;
-    this.targetState.x = this.currentState.x;
-    this.targetState.y = this.currentState.y;
-    this.render();
-  }
-
-  zoomAt(pointerX, pointerY, zoomFactor) {
-    const prevZ = this.currentState.z;
-    const nextZ = Math.max(0.5, Math.min(25.0, prevZ * zoomFactor));
-
-    const worldBefore = this.screenToWorld(pointerX, pointerY, prevZ);
-
-    this.currentState.z = nextZ;
-    this.targetState.z = nextZ;
-
-    const worldAfter = this.screenToWorld(pointerX, pointerY, nextZ);
-
-    this.currentState.x += worldBefore.x - worldAfter.x;
-    this.currentState.y += worldBefore.y - worldAfter.y;
-    this.targetState.x = this.currentState.x;
-    this.targetState.y = this.currentState.y;
-
-    this.render();
-  }
-
-  screenToWorld(screenX, screenY, zOverride = null) {
-    const z = zOverride ?? this.currentState.z;
-    return {
-      x: this.currentState.x + (screenX - this.canvas.width / 2) / z,
-      y: this.currentState.y + (screenY - this.canvas.height / 2) / z
-    };
-  }
-
+  /**
+   * Main camera interpolation loop
+   */
   update() {
     const dx = this.targetState.x - this.currentState.x;
     const dy = this.targetState.y - this.currentState.y;
@@ -129,8 +86,11 @@ class ZoomEngine {
       return;
     }
 
+    // Position interpolation
     this.currentState.x += dx * this.lerpFactor;
     this.currentState.y += dy * this.lerpFactor;
+
+    // Exponential zoom interpolation
     this.currentState.z *= Math.pow(zRatio, this.lerpFactor);
 
     this.render();
@@ -138,182 +98,234 @@ class ZoomEngine {
   }
 
   /**
-   * Phase 3B Polymorphic Render Path
+   * FIXED: State Layering Hook
+   * Isolates the playback snapshot instead of mutating runtime truth mid-frame
+   */
+  setReplayFrame(frame) {
+    this.replayFrame = frame;
+    if (frame && (frame.camera || frame.nodes)) {
+      this.replayMode = true;
+    } else {
+      this.replayMode = false;
+    }
+    this.render();
+  }
+
+  /**
+   * Restores regular simulation perspective rendering
+   */
+  clearReplayMode() {
+    this.replayMode = false;
+    this.replayFrame = null;
+    this.render();
+  }
+
+  /**
+   * Full render pass
    */
   render() {
     const ctx = this.ctx;
+
+    // FIXED: Select render state source non-destructively
+    const renderCamera = (this.replayMode && this.replayFrame?.camera)
+      ? this.replayFrame.camera
+      : this.currentState;
+
+    const { x, y, z } = renderCamera;
+
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.save();
 
-    // Establish transformation camera space matrix
+    // 1) Move origin to canvas center
     ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
-    ctx.scale(this.currentState.z, this.currentState.z);
-    ctx.translate(-this.currentState.x, -this.currentState.y);
 
-    if (this.viewport && typeof this.viewport.drawInfiniteGrid === 'function') {
-      this.viewport.drawInfiniteGrid(this.currentState);
+    // 2) Apply zoom
+    ctx.scale(z, z);
+
+    // 3) Apply camera translation in world space
+    ctx.translate(-x, -y);
+
+    const currentLOD = this.getLevelOfDetail(z);
+
+    // Draw substrate grid beneath nodes
+    if (this.fabricCanvas) {
+      this.fabricCanvas.drawInfiniteGrid(renderCamera);
     }
 
-    const currentLOD = this.getLevelOfDetail(this.currentState.z);
-
+    // FIXED: Render spatial nodes from the isolated replay history or live context
     let visibleNodes = [];
-    let visibleEdges = [];
-
-    // Route graph filters based on the active orchestrator mode
-    if (this.nodeManager) {
-      visibleNodes = this.replayMode
-        ? this.nodeManager.getVisibleNodesAtTime(this.currentState, this.playbackCursor)
-        : this.nodeManager.getVisibleNodes(this.currentState);
-
-      visibleEdges = this.replayMode
-        ? this.nodeManager.getVisibleEdgesAtTime(this.currentState, this.playbackCursor)
-        : this.nodeManager.getVisibleEdges(this.currentState);
+    if (this.replayMode && this.replayFrame?.nodes) {
+      visibleNodes = this.replayFrame.nodes;
+    } else if (this.nodeManager) {
+      visibleNodes = this.nodeManager.getVisibleNodes(z);
     }
 
-    // Pass 1: Render background relationship channels first
-    this.renderEdges(visibleEdges, {
-      replayMode: this.replayMode,
-      playbackCursor: this.playbackCursor
-    });
-
-    // Pass 2: Overlay semantic node bounds on top
-    this.renderNodes(visibleNodes, currentLOD, {
-      replayMode: this.replayMode,
-      playbackCursor: this.playbackCursor
-    });
+    for (const node of visibleNodes) {
+      this.drawNode(node, currentLOD, renderCamera);
+    }
 
     ctx.restore();
   }
 
-  renderEdges(edges = [], { replayMode = false, playbackCursor = null } = {}) {
-    const ctx = this.ctx;
-    const cz = this.currentState.z;
+  /**
+   * Node renderer for each semantic zoom layer
+   */
+  drawNode(node, lod, renderCamera) {
+    if (lod === 'macro_summary' && node.level === 0) {
+      this.drawMacroNode(node, renderCamera.z);
+      return;
+    }
 
-    for (const edge of edges) {
-      const fromNode = edge.sourceNode;
-      const toNode = edge.targetNode;
-      if (!fromNode || !toNode) continue;
+    if (lod === 'thematic_cluster' && node.level <= 1) {
+      this.drawThemeNode(node, renderCamera.z);
+      return;
+    }
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(fromNode.x, fromNode.y);
-      ctx.lineTo(toNode.x, toNode.y);
-
-      // Distinguish structural vs secondary paths
-      if (edge.type === 'structural' || edge.type === 'parent') {
-        ctx.strokeStyle = 'rgba(120, 180, 255, 0.35)';
-        ctx.lineWidth = 2 / cz;
-      } else {
-        ctx.strokeStyle = 'rgba(180, 180, 180, 0.20)';
-        ctx.lineWidth = 1 / cz;
-      }
-
-      // Pulse edge if it exactly matches the historic replay slice
-      if (replayMode && playbackCursor != null && edge.sequence === playbackCursor) {
-        ctx.strokeStyle = 'rgba(255, 214, 102, 0.85)';
-        ctx.lineWidth = 2.5 / cz;
-      }
-
-      ctx.stroke();
-      ctx.restore();
+    if (lod === 'raw_message') {
+      this.drawMessageNode(node, renderCamera.z);
     }
   }
 
-  renderNodes(nodes = [], lod, { replayMode = false, playbackCursor = null } = {}) {
-    for (const node of nodes) {
-      const isSelected = node.id === this.selectedNodeId;
-      const isNewestAtCursor =
-        replayMode && playbackCursor != null && node.sequence === playbackCursor;
-
-      // Extract details dependent on metadata levels
-      const nodeLevel = node.metadata?.level ?? 1;
-
-      if (lod === 'macro_summary' && nodeLevel === 0) {
-        this.drawMacroNode(node, { isSelected, isNewestAtCursor });
-      } else if (lod === 'thematic_cluster' && nodeLevel <= 1) {
-        this.drawThemeNode(node, { isSelected, isNewestAtCursor });
-      } else if (lod === 'raw_message') {
-        this.drawMessageNode(node, { isSelected, isNewestAtCursor });
-      }
-    }
-  }
-
-  drawMacroNode(node, flags = {}) {
-    this._drawNodeShell(node, {
-      fill: 'rgba(22, 119, 255, 0.25)',
-      stroke: '#1677ff',
-      fontSize: 14,
-      font: 'sans-serif',
-      ...flags
-    });
-  }
-
-  drawThemeNode(node, flags = {}) {
-    this._drawNodeShell(node, {
-      fill: 'rgba(43, 135, 255, 0.35)',
-      stroke: '#8db7ff',
-      fontSize: 11,
-      font: 'sans-serif',
-      ...flags
-    });
-  }
-
-  drawMessageNode(node, flags = {}) {
-    this._drawNodeShell(node, {
-      fill: '#2c2c2c',
-      stroke: '#666666',
-      fontSize: 9,
-      font: 'monospace',
-      ...flags
-    });
-  }
-
-  _drawNodeShell(node, config) {
+  /**
+   * Level 0: session / continent layer
+   */
+  drawMacroNode(node, currentZ) {
     const ctx = this.ctx;
-    const cz = this.currentState.z;
-    const {
-      fill,
-      stroke,
-      fontSize,
-      font,
-      isSelected = false,
-      isNewestAtCursor = false
-    } = config;
+    const width = node.width || 160;
+    const height = node.height || 56;
+    const radius = 18;
 
-    // Dynamic scale width boundary box based on string footprint
-    const labelText = node.label || '';
-    const textPadding = font === 'monospace' ? 12 : 16;
-    const estimatedWidth = Math.max(node.radius * 2.5, labelText.length * (fontSize * 0.55) + textPadding);
-    const boxHeight = fontSize * 2.2;
+    ctx.fillStyle = 'rgba(22, 119, 255, 0.22)';
+    ctx.strokeStyle = '#1677ff';
+    ctx.lineWidth = 2 / currentZ;
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-    ctx.fillStyle = fill;
+    this.drawRoundedRect(
+      node.x - width / 2,
+      node.y - height / 2,
+      width,
+      height,
+      radius
+    );
+
     ctx.fill();
-
-    ctx.strokeStyle = isSelected ? '#ffd666' : stroke;
-    ctx.lineWidth = (isSelected ? 2.5 : 1.5) / cz;
     ctx.stroke();
 
-    // Chronological glow halo for the trailing temporal frame node
-    if (isNewestAtCursor) {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `${14 / currentZ}px sans-serif`;
+    ctx.textBaseline = 'middle';
+
+    const label = this.truncateText(node.text || 'Macro Core', 36);
+    ctx.fillText(label, node.x - width / 2 + 12, node.y);
+  }
+
+  /**
+   * Level 1: theme / region layer
+   */
+  drawThemeNode(node, currentZ) {
+    const ctx = this.ctx;
+    const width = node.width || 120;
+    const height = node.height || 48;
+    const radius = 14;
+
+    ctx.fillStyle = 'rgba(43, 135, 255, 0.32)';
+    ctx.strokeStyle = '#8db7ff';
+    ctx.lineWidth = 1.5 / currentZ;
+
+    this.drawRoundedRect(
+      node.x - width / 2,
+      node.y - height / 2,
+      width,
+      height,
+      radius
+    );
+
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `${11 / currentZ}px sans-serif`;
+    ctx.textBaseline = 'middle';
+
+    const label = this.truncateText(node.text || 'Thematic Cluster', 42);
+    ctx.fillText(label, node.x - width / 2 + 8, node.y);
+  }
+
+  /**
+   * Level 2+: raw message / street layer
+   */
+  drawMessageNode(node, currentZ) {
+    const ctx = this.ctx;
+    const width = node.width || 180;
+    const height = node.height || 36;
+    const radius = 10;
+
+    ctx.fillStyle = '#2c2c2c';
+    ctx.strokeStyle = '#666666';
+    ctx.lineWidth = 1 / currentZ;
+
+    this.drawRoundedRect(
+      node.x - width / 2,
+      node.y - height / 2,
+      width,
+      height,
+      radius
+    );
+
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `${9 / currentZ}px monospace`;
+    ctx.textBaseline = 'middle';
+
+    const label = this.truncateText(node.text || 'Message Node', 60);
+    ctx.fillText(label, node.x - width / 2 + 6, node.y);
+  }
+
+  /**
+   * Rounded rectangle helper with canvas fallback safety
+   */
+  drawRoundedRect(x, y, width, height, radius) {
+    const ctx = this.ctx;
+
+    if (typeof ctx.roundRect === 'function') {
       ctx.beginPath();
-      ctx.arc(node.x, node.y, node.radius + (5 / cz), 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255, 214, 102, 0.9)';
-      ctx.lineWidth = 2 / cz;
-      ctx.stroke();
+      ctx.roundRect(x, y, width, height, radius);
+      return;
     }
 
-    // Text label drawing bounds
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `${fontSize / cz}px ${font}`;
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
-    ctx.fillText(labelText, node.x, node.y + node.radius + (12 / cz));
-    ctx.restore();
+    const r = Math.min(radius, width / 2, height / 2);
+
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    ctx.lineTo(x + r, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
   }
+
+
+  
+ /**
+   * Prevent labels from blowing out node bounds
+   */
+truncateText(text, maxLength) {
+  if (typeof text !== 'string') {
+    return '';
+  }
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 3)}...`;
 }
 
-module.exports = ZoomEngine;
+} // <-- closes class ZoomEngine
 
+module.exports = ZoomEngine;

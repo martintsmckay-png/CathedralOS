@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CathedralOS // Memory Pantry</title>
+    <style>
+        :root {
+            --matrix-bg: #050505;
+            --water-blue: #00aaff;
+            --caramel: #d4a574;
+            --dim: #333;
+            --heartbeat: #ff4d7d;
+        }
+
+        body {
+            background-color: var(--matrix-bg);
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+            max-width: 700px;
+            margin: 0 auto;
+            border-left: 2px solid var(--water-blue);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .heartbeat-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0.14;
+            mix-blend-mode: screen;
+        }
+
+        .heartbeat-line {
+            fill: none;
+            stroke: var(--heartbeat);
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            filter: drop-shadow(0 0 10px rgba(255, 77, 125, 0.5));
+            stroke-dasharray: 1800;
+            stroke-dashoffset: 1800;
+            animation: beat-draw 4.2s linear infinite;
+        }
+
+        @keyframes beat-draw {
+            0% { stroke-dashoffset: 1800; opacity: 0.15; }
+            45% { stroke-dashoffset: 900; opacity: 0.85; }
+            50% { stroke-dashoffset: 860; opacity: 1; }
+            55% { stroke-dashoffset: 820; opacity: 0.85; }
+            100% { stroke-dashoffset: 0; opacity: 0.15; }
+        }
+
+        .pantry-shell {
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            color: var(--water-blue);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 1.5em;
+            border-bottom: 1px dashed var(--water-blue);
+            padding-bottom: 10px;
+        }
+
+        .pulse {
+            animation: blinker 2s linear infinite;
+        }
+
+        @keyframes blinker {
+            50% { opacity: 0.5; }
+        }
+
+        .card {
+            background: rgba(0, 170, 255, 0.05);
+            border: 1px solid var(--water-blue);
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: inset 0 0 15px rgba(0, 170, 255, 0.1);
+        }
+
+        .data-label {
+            color: #666;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            display: block;
+            margin-top: 15px;
+        }
+
+        .data-value {
+            font-weight: bold;
+            display: block;
+            font-size: 1.1em;
+            margin-top: 5px;
+            line-height: 1.4;
+            color: var(--water-blue);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--water-blue);
+            color: var(--water-blue);
+            padding: 12px;
+            font-family: inherit;
+            font-size: 1em;
+            flex: 1;
+            min-width: 0;
+        }
+
+        input::placeholder {
+            color: #666;
+        }
+
+        button {
+            background: transparent;
+            color: var(--water-blue);
+            border: 1px solid var(--water-blue);
+            padding: 12px 20px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: var(--water-blue);
+            color: var(--matrix-bg);
+        }
+
+        .memory-list {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .memory-item {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--dim);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--caramel);
+            overflow: hidden;
+        }
+
+        .memory-title {
+            color: var(--caramel);
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .memory-content {
+            color: #aaa;
+            margin-top: 8px;
+            font-size: 0.95em;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 180px;
+            overflow: auto;
+        }
+
+        .memory-date {
+            color: #666;
+            font-size: 0.8em;
+            margin-top: 8px;
+            text-align: right;
+        }
+
+        .memory-delete {
+            background: transparent;
+            color: #888;
+            border: 1px solid #444;
+            padding: 5px 10px;
+            font-size: 0.8em;
+            margin-top: 10px;
+            float: right;
+        }
+
+        .memory-delete:hover {
+            border-color: var(--water-blue);
+            color: var(--water-blue);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+        }
+
+        .empty-state span {
+            font-size: 3em;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .footer-note {
+            color: #666;
+            font-size: 0.8em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <svg class="heartbeat-bg" viewBox="0 0 1200 800" preserveAspectRatio="none" aria-hidden="true">
+        <path class="heartbeat-line" d="M0 420 L180 420 L240 420 L270 340 L300 520 L340 420 L520 420 L560 400 L600 460 L650 220 L700 620 L760 420 L980 420 L1040 420 L1080 360 L1120 500 L1160 420 L1200 420" />
+    </svg>
+
+    <div class="pantry-shell">
+        <h1>📦 Memory Pantry <span class="pulse" style="color:var(--caramel)">:: PRESERVED</span></h1>
+
+        <div class="card">
+            <span class="data-label">Store New Memory</span>
+            <div class="input-group">
+                <input type="text" id="memoryTitle" placeholder="Title (e.g., Forgotten Tuesday)">
+                <button onclick="storeMemory()">💾 SAVE</button>
+            </div>
+            <input type="text" id="memoryContent" placeholder="Content (blessings, quest rewards, caramel residue...)" style="width: 100%; margin-top: 10px;">
+            <div class="footer-note">Long entries will wrap and scroll inside each memory card.</div>
+        </div>
+
+        <div class="card">
+            <span class="data-label">Memory Inventory</span>
+            <span class="data-value" id="memoryCount">0 items preserved</span>
+            <div class="memory-list" id="memoryList">
+                <div class="empty-state">
+                    <span>🍮</span>
+                    The pantry is empty.<br>
+                    Add your first caramel of remembrance.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let memories = [];
+
+        function loadMemories() {
+            try {
+                const stored = localStorage.getItem('cathedralos_memories');
+                if (stored) memories = JSON.parse(stored);
+            } catch (e) {
+                memories = [];
+            }
+            renderMemories();
+        }
+
+        function storeMemory() {
+            const titleInput = document.getElementById('memoryTitle');
+            const contentInput = document.getElementById('memoryContent');
+
+            const title = titleInput.value.trim();
+            const content = contentInput.value.trim();
+
+            if (!title || !content) {
+                alert('🍮 Title and content required. The pantry rejects empty vessels.');
+                return;
+            }
+
+            memories.unshift({
+                id: Date.now(),
+                title,
+                content,
+                date: new Date().toISOString()
+            });
+
+            saveMemories();
+            titleInput.value = '';
+            contentInput.value = '';
+            alert('🍮 Memory preserved. Caramel sealed.');
+        }
+
+        function deleteMemory(id) {
+            if (confirm('🗑️ Release this memory from the pantry?')) {
+                memories = memories.filter(m => m.id !== id);
+                saveMemories();
+            }
+        }
+
+        function saveMemories() {
+            try {
+                localStorage.setItem('cathedralos_memories', JSON.stringify(memories));
+            } catch (e) {
+                alert('❌ Pantry storage failed. Memory evaporated.');
+            }
+            renderMemories();
+        }
+
+        function renderMemories() {
+            const list = document.getElementById('memoryList');
+            const count = document.getElementById('memoryCount');
+            count.innerText = `${memories.length} items preserved`;
+
+            if (memories.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <span>🍮</span>
+                        The pantry is empty.<br>
+                        Add your first caramel of remembrance.
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = memories.map(m => {
+                const date = new Date(m.date).toLocaleString('en-US', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                });
+
+                return `
+                    <div class="memory-item">
+                        <div class="memory-title">${escapeHtml(m.title)}</div>
+                        <div class="memory-content">${escapeHtml(m.content)}</div>
+                        <div class="memory-date">${date}</div>
+                        <button class="memory-delete" onclick="deleteMemory(${m.id})">🗑️ RELEASE</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(str) {
+            return str
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        loadMemories();
+    </script>
+</body>
+</html>

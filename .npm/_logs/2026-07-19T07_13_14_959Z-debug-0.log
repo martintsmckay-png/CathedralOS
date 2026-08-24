@@ -1,0 +1,36 @@
+0 verbose cli /data/data/com.termux/files/usr/bin/node /data/data/com.termux/files/usr/bin/npm
+1 info using npm@11.18.0
+2 info using node@v24.17.0
+3 silly config load:file:/data/data/com.termux/files/usr/lib/node_modules/npm/npmrc
+4 silly config load:file:/data/data/com.termux/files/home/CathedralOS/src/subsystems/precog-runtime/.npmrc
+5 silly config load:file:/data/data/com.termux/files/home/.npmrc
+6 silly config load:file:/data/data/com.termux/files/usr/etc/npmrc
+7 verbose title npm test
+8 verbose argv "test"
+9 verbose logfile logs-max:10 dir:/data/data/com.termux/files/home/.npm/_logs/2026-07-19T07_13_14_959Z-
+10 verbose logfile /data/data/com.termux/files/home/.npm/_logs/2026-07-19T07_13_14_959Z-debug-0.log
+11 silly logfile done cleaning log files
+12 verbose stack Error: Could not read package.json: Error: ENOENT: no such file or directory, open '/data/data/com.termux/files/home/CathedralOS/src/subsystems/precog-runtime/package.json'
+12 verbose stack     at async open (node:internal/fs/promises:640:25)
+12 verbose stack     at async readFile (node:internal/fs/promises:1290:14)
+12 verbose stack     at async read (/data/data/com.termux/files/usr/lib/node_modules/npm/node_modules/@npmcli/package-json/lib/read-package.js:9:18)
+12 verbose stack     at async PackageJson.load (/data/data/com.termux/files/usr/lib/node_modules/npm/node_modules/@npmcli/package-json/lib/index.js:131:31)
+12 verbose stack     at async PackageJson.normalize (/data/data/com.termux/files/usr/lib/node_modules/npm/node_modules/@npmcli/package-json/lib/index.js:117:5)
+12 verbose stack     at async #run (/data/data/com.termux/files/usr/lib/node_modules/npm/lib/commands/run.js:90:13)
+12 verbose stack     at async RunScript.exec (/data/data/com.termux/files/usr/lib/node_modules/npm/lib/commands/run.js:44:7)
+12 verbose stack     at async Npm.exec (/data/data/com.termux/files/usr/lib/node_modules/npm/lib/npm.js:193:9)
+12 verbose stack     at async module.exports (/data/data/com.termux/files/usr/lib/node_modules/npm/lib/cli/entry.js:67:5)
+13 error code ENOENT
+14 error syscall open
+15 error path /data/data/com.termux/files/home/CathedralOS/src/subsystems/precog-runtime/package.json
+16 error errno -2
+17 error enoent Could not read package.json: Error: ENOENT: no such file or directory, open '/data/data/com.termux/files/home/CathedralOS/src/subsystems/precog-runtime/package.json'
+18 error enoent This is related to npm not being able to find a file.
+18 error enoent
+19 verbose cwd /data/data/com.termux/files/home/CathedralOS/src/subsystems/precog-runtime
+20 verbose os Linux 6.12.23-android16-5-abA075MUBS5BZD2-4k
+21 verbose node v24.17.0
+22 verbose npm  v11.18.0
+23 verbose exit -2
+24 verbose code -2
+25 error A complete log of this run can be found in: /data/data/com.termux/files/home/.npm/_logs/2026-07-19T07_13_14_959Z-debug-0.log

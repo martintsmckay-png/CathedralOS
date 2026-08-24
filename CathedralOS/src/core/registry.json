@@ -1,0 +1,50 @@
+{
+  "system_identity": {
+    "name": "CathedralOS",
+    "version": "1.0.0",
+    "tier": "Level 3 Journeyman"
+  },
+  "modules": [
+    {
+      "id": "cosmicos_v1",
+      "name": "COSMICOS Forecast Engine",
+      "path": "src/web/cosmicos.html",
+      "type": "Frontend Panel",
+      "status": "ACTIVE",
+      "features": ["Dual-Language Matrix Matrix", "Hot-Reload Circuit Breaker"]
+    },
+    {
+      "id": "pastaguard_core",
+      "name": "PastaGuard Exception Boundary",
+      "path": "src/core/pastaGuard.js",
+      "type": "Defensive Architecture Component",
+      "status": "ARMORED",
+      "features": ["Runtime Payload Verification", "TypeError Circuit Breaker"]
+    },
+    {
+      "id": "integrity_automation",
+      "name": "System Integrity Monitor",
+      "path": "scripts/integrity_check.py",
+      "type": "Automation Utility",
+      "status": "ACTIVE",
+      "features": ["Zero-Width Space Tracking", "Quest Verification Loop"]
+    },
+    {
+      "id": "observatory_core",
+      "name": "Observatory Perception Engine",
+      "path": "src/observatory/eventStream.js",
+      "type": "Telemetry Tracker",
+      "status": "ACTIVE",
+      "features": ["Unified Event Ticker", "Global Pulse Emitter"]
+    },
+    {
+      "id": "observatory_classifier",
+      "name": "Observatory Event Classifier",
+      "path": "src/observatory/classifier.js",
+      "type": "Perception Component",
+      "status": "ACTIVE",
+      "features": ["Not-A-Bug Taxonomy Engine", "Reward Tracking Engine"]
+    }
+  ]
+}
+

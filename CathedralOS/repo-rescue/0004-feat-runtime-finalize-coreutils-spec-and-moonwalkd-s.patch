@@ -1,0 +1,47 @@
+From 75ea76789766fca8c927b6bb4382be53bfd86f36 Mon Sep 17 00:00:00 2001
+From: Martin McKay <martintsmckay@gmail.com>
+Date: Tue, 30 Jun 2026 23:47:07 -0500
+Subject: [PATCH 4/4] feat(runtime): finalize coreutils spec and moonwalkd
+ scheduler topology
+
+---
+ docs/architecture/MoonwalkMode.md | 2 ++
+ docs/architecture/Runtime_v1.0.md | 4 ++++
+ docs/coreutils/README.md          | 5 +++++
+ 3 files changed, 11 insertions(+)
+ create mode 100644 docs/architecture/MoonwalkMode.md
+ create mode 100644 docs/architecture/Runtime_v1.0.md
+ create mode 100644 docs/coreutils/README.md
+
+diff --git a/docs/architecture/MoonwalkMode.md b/docs/architecture/MoonwalkMode.md
+new file mode 100644
+index 0000000..fe4f4fb
+--- /dev/null
++++ b/docs/architecture/MoonwalkMode.md
+@@ -0,0 +1,2 @@
++# 🌙 Multi-Pointer Moonwalk Mode — Specification v1.0
++Defines moonwalkd daemon mechanics, cooperative slicing, and the execution parameters for handling LostInTheSauceExceptions.
+diff --git a/docs/architecture/Runtime_v1.0.md b/docs/architecture/Runtime_v1.0.md
+new file mode 100644
+index 0000000..7a4c0a6
+--- /dev/null
++++ b/docs/architecture/Runtime_v1.0.md
+@@ -0,0 +1,4 @@
++# 🏰 CathedralOS Runtime Specification — v1.0
++The CathedralOS Runtime is a non-linear, time-aware, reverse-entropy symbolic execution environment. It completely decouples internal data transformations from user perception, utilizing a modular, culinary-abstracted hardware and software stack to maintain system stability at exactly -24 entropy frames per second.
++
++[...Insert Compiled Universal Topology Matrix...]
+diff --git a/docs/coreutils/README.md b/docs/coreutils/README.md
+new file mode 100644
+index 0000000..ad3d7f2
+--- /dev/null
++++ b/docs/coreutils/README.md
+@@ -0,0 +1,5 @@
++# 🛠️ CathedralOS Core Utilities (coreutils) — v1.0
++Userland binary tools mapped to the 432Hz/0xFA resonance profile.
++- knead: Defragment symbolic crumbs.
++- slice: Partition execution spaces.
++- toast: Securely dissolve volatile cache partitions via high acidity.
+-- 
+2.54.0
+

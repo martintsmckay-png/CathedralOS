@@ -1,0 +1,16 @@
+# AR Pulse Emitter: Blueprint v1.0
+
+**Module:** Haptic-Digital Bridge
+**Primary Function:** To translate MARM_Ledger heartbeat into physical device vibration/display pulses.
+
+**Specifications:**
+- **Pulse Interval:** Synchronized with system stability anchors (1 pulse/stable check).
+- **Haptic Feedback:** Low-frequency vibration on boot; high-frequency on error.
+- **Visual Overlay:** Pulse emitter glyph (🐾🔥) pulses in AR display when system is active.
+
+**Activation Command:**
+`feathers --pulse --mode=active`
+
+**Fail-safe:**
+- If heartbeat stops, emitter enters "Static Ghost" mode (dim display, zero vibration).
+
