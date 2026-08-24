@@ -23,7 +23,7 @@ def seal_ledger_file(path):
     golden_thread["event_hash"] = digest
 
     ledger_path.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False) + "
+        json.dumps(data, indent=2, ensure_ascii=False) + "\
 ",
         encoding="utf-8",
     )
