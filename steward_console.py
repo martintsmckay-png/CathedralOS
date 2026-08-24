@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,6 +21,8 @@ from ccq.ccq_inspector import (
 
 LEDGER_DIR = Path("ledger")
 CURRENT = LEDGER_DIR / "ledger-current.json"
+QUARANTINE_DIR = Path("ccq_quarantine")
+DECISION_DIR = Path("ccq_decisions")
 
 
 def clear_screen():
@@ -134,6 +137,88 @@ def inspect_quarantine():
     print()
 
 
+def archive_artifact(artifact_path, decision):
+    DECISION_DIR.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    destination = (
+        DECISION_DIR / f"{timestamp}-{decision.lower()}-{artifact_path.name}"
+    )
+
+    if destination.exists():
+        raise FileExistsError(f"Destination already exists: {destination}")
+
+    return Path(shutil.move(str(artifact_path), str(destination)))
+
+
+def artifact_actions_menu(artifact_path):
+    print(f">> CCQ ARTIFACT ACTIONS - {artifact_path.name}")
+
+    report = inspect_artifact(artifact_path)
+
+    if not report:
+        print("Could not load artifact.")
+        print()
+        return
+
+    print_artifact_report(report)
+    print()
+
+    while True:
+        print("Actions:")
+        print("1. Approve artifact")
+        print("2. Reject artifact")
+        print("3. Promote artifact")
+        print("4. Return")
+        print()
+
+        action = input("Select action: ").strip()
+
+        decisions = {
+            "1": "APPROVED",
+            "2": "REJECTED",
+            "3": "PROMOTED",
+        }
+
+        if action == "4":
+            return
+
+        decision = decisions.get(action)
+
+        if decision is None:
+            input("Invalid option. Press Enter to continue...")
+            continue
+
+        event = {
+            "traveler": report.get("traveler"),
+            "decision": decision,
+            "source": "steward_console",
+            "artifact": artifact_path.name,
+            "passport": report.get("passport", {}),
+            "xray": report.get("xray", {}),
+            "hospitality_packet": report.get("hospitality_packet", {}),
+            "golden_thread": report.get("golden_thread", {}),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        try:
+            recorded_event, digest = record_ccq_event(event)
+            archived_path = archive_artifact(artifact_path, decision)
+        except Exception as exc:
+            print(f"[FAILED] Action was not completed: {exc}")
+            input("Press Enter to continue...")
+            continue
+
+        print(f"[CCQ] {decision}: {recorded_event['event_hash']}")
+        print(f"[ARCHIVED] {archived_path}")
+
+        if digest:
+            print(f"[ROTATED] Segment hash: {digest}")
+
+        print()
+        return
+
+
 def select_quarantine_artifact():
     print(">> CCQ QUARANTINE - SELECT ARTIFACT")
 
@@ -168,14 +253,7 @@ def select_quarantine_artifact():
         return
 
     artifact_path = artifacts[index - 1]
-    report = inspect_artifact(artifact_path)
-
-    if report:
-        print_artifact_report(report)
-    else:
-        print(f"Could not load artifact: {artifact_path.name}")
-
-    print()
+    artifact_actions_menu(artifact_path)
 
 
 def pause():

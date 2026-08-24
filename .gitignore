@@ -13,3 +13,4 @@ __pycache__/
 __pycache__/
 *.py[cod]
 ledger/ledger-current.json
+ccq_decisions/
