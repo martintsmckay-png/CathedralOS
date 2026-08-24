@@ -7,3 +7,5 @@
 .termux_authinfo
 server.log
 test_run.log
+__pycache__/
+ccq_quarantine/
