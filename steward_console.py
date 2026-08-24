@@ -330,6 +330,61 @@ def select_quarantine_artifact():
     artifact_actions_menu(artifact_path)
 
 
+def trace_golden_thread():
+    print(Color.wrap(">> GOLDEN THREAD TRACE", Color.CYAN))
+    print()
+
+    event_hash = input("Enter event hash to trace: ").strip()
+
+    if not event_hash:
+        print(Color.wrap("Cancelled.", Color.YELLOW))
+        print()
+        return
+
+    segments = sorted(LEDGER_DIR.glob("ledger-*.json"))
+    if CURRENT.exists():
+        segments.append(CURRENT)
+
+    trace_results = []
+
+    for seg_path in segments:
+        try:
+            with seg_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        for entry in data.get("entries", []):
+            if entry.get("event_hash") == event_hash:
+                trace_results.append({
+                    "segment": data.get("segment"),
+                    "timestamp": entry.get("timestamp"),
+                    "decision": entry.get("decision"),
+                    "traveler": entry.get("traveler"),
+                    "path": seg_path.name,
+                })
+
+    if not trace_results:
+        print(Color.wrap("No matching event found in any ledger segment.", Color.RED))
+        print()
+        return
+
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print(Color.wrap("           GOLDEN THREAD TRACE", Color.BOLD))
+    print(Color.wrap("=" * 46, Color.CYAN))
+
+    for item in trace_results:
+        print(Color.wrap(f"Segment: {item['segment']}", Color.BLUE))
+        print(f"  Path: {item['path']}")
+        print(f"  Traveler: {item['traveler']}")
+        print(f"  Decision: {Color.wrap(item['decision'], Color.YELLOW)}")
+        print(f"  Timestamp: {item['timestamp']}")
+        print()
+
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print()
+
+
 def pause():
     input("Press Enter to return...")
 
@@ -345,7 +400,8 @@ def main_menu():
         print("4. Rotate ledger now")
         print("5. Record test CCQ event")
         print("6. Inspect CCQ quarantine")
-        print("7. Exit")
+        print("7. Trace Golden Thread")
+        print("8. Exit")
         print()
 
         choice = input("Select option: ").strip()
@@ -397,6 +453,10 @@ def main_menu():
                     input(Color.wrap("Invalid option. Press Enter to continue...", Color.YELLOW))
 
         elif choice == "7":
+            clear_screen()
+            trace_golden_thread()
+            pause()
+        elif choice == "8":
             print("Exiting Steward Console.")
             break
         else:
