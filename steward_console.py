@@ -330,6 +330,67 @@ def select_quarantine_artifact():
     artifact_actions_menu(artifact_path)
 
 
+def explore_segments():
+    print(Color.wrap(">> LEDGER SEGMENT EXPLORER", Color.CYAN))
+    print()
+
+    segments = sorted(LEDGER_DIR.glob("ledger-*.json"))
+    if not segments:
+        print(Color.wrap("No archived ledger segments found.", Color.YELLOW))
+        print()
+        return
+
+    for idx, seg_path in enumerate(segments, start=1):
+        print(f"{idx}. {Color.wrap(seg_path.name, Color.YELLOW)}")
+
+    print()
+    choice = input("Select segment number (or press Enter to cancel): ").strip()
+
+    if not choice:
+        print(Color.wrap("Cancelled.", Color.YELLOW))
+        print()
+        return
+
+    if not choice.isdigit():
+        print(Color.wrap("Invalid selection.", Color.RED))
+        print()
+        return
+
+    index = int(choice)
+    if index < 1 or index > len(segments):
+        print(Color.wrap("Selection out of range.", Color.YELLOW))
+        print()
+        return
+
+    seg_path = segments[index - 1]
+
+    try:
+        with seg_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(Color.wrap(f"Could not load segment: {exc}", Color.RED))
+        print()
+        return
+
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print(Color.wrap(f"        SEGMENT {data.get('segment')}", Color.BOLD))
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print(f"Previous hash: {data.get('previous_sha256')}")
+    print(f"Entries: {len(data.get('entries', []))}")
+    print()
+
+    for idx, entry in enumerate(data.get("entries", []), start=1):
+        print(Color.wrap(f"Entry {idx}", Color.BLUE))
+        print(f"  Traveler: {entry.get('traveler')}")
+        print(f"  Decision: {Color.wrap(entry.get('decision'), Color.YELLOW)}")
+        print(f"  Event Hash: {Color.wrap(entry.get('event_hash'), Color.MAGENTA)}")
+        print(f"  Timestamp: {entry.get('timestamp')}")
+        print()
+
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print()
+
+
 def trace_golden_thread():
     print(Color.wrap(">> GOLDEN THREAD TRACE", Color.CYAN))
     print()
@@ -400,8 +461,9 @@ def main_menu():
         print("4. Rotate ledger now")
         print("5. Record test CCQ event")
         print("6. Inspect CCQ quarantine")
-        print("7. Trace Golden Thread")
-        print("8. Exit")
+        print("7. Explore Ledger Segments")
+        print("8. Trace Golden Thread")
+        print("9. Exit")
         print()
 
         choice = input("Select option: ").strip()
@@ -454,9 +516,13 @@ def main_menu():
 
         elif choice == "7":
             clear_screen()
-            trace_golden_thread()
+            explore_segments()
             pause()
         elif choice == "8":
+            clear_screen()
+            trace_golden_thread()
+            pause()
+        elif choice == "9":
             print("Exiting Steward Console.")
             break
         else:
