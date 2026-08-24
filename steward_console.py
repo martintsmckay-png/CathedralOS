@@ -446,6 +446,74 @@ def trace_golden_thread():
     print()
 
 
+def explore_decision_history():
+    print(Color.wrap(">> CCQ DECISION HISTORY", Color.CYAN))
+    print()
+
+    if not DECISION_DIR.exists():
+        print(Color.wrap("No decision archive directory found.", Color.YELLOW))
+        print()
+        return
+
+    decisions = sorted(DECISION_DIR.glob("*.json"))
+    if not decisions:
+        print(Color.wrap("No archived decisions found.", Color.YELLOW))
+        print()
+        return
+
+    for idx, path in enumerate(decisions, start=1):
+        print(f"{idx}. {Color.wrap(path.name, Color.YELLOW)}")
+
+    print()
+    choice = input("Select decision file (or press Enter to cancel): ").strip()
+
+    if not choice:
+        print(Color.wrap("Cancelled.", Color.YELLOW))
+        print()
+        return
+
+    if not choice.isdigit():
+        print(Color.wrap("Invalid selection.", Color.RED))
+        print()
+        return
+
+    index = int(choice)
+    if index < 1 or index > len(decisions):
+        print(Color.wrap("Selection out of range.", Color.YELLOW))
+        print()
+        return
+
+    decision_path = decisions[index - 1]
+
+    try:
+        with decision_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(Color.wrap(f"Could not load decision file: {exc}", Color.RED))
+        print()
+        return
+
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print(Color.wrap("           DECISION RECORD", Color.BOLD))
+    print(Color.wrap("=" * 46, Color.CYAN))
+
+    print(f"File: {decision_path.name}")
+    print(f"Traveler: {data.get('traveler')}")
+    print(f"Decision: {Color.wrap(data.get('decision'), Color.YELLOW)}")
+    print(f"Timestamp: {data.get('timestamp')}")
+    print(f"Source: {data.get('source')}")
+    print(
+        f"Event Hash: "
+        f"{Color.wrap(data.get('event_hash', '(none)'), Color.MAGENTA)}"
+    )
+    print()
+
+    render_passport_panel(data)
+
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print()
+
+
 def pause():
     input("Press Enter to return...")
 
@@ -463,7 +531,8 @@ def main_menu():
         print("6. Inspect CCQ quarantine")
         print("7. Explore Ledger Segments")
         print("8. Trace Golden Thread")
-        print("9. Exit")
+        print("9. View Decision History")
+        print("10. Exit")
         print()
 
         choice = input("Select option: ").strip()
@@ -523,6 +592,10 @@ def main_menu():
             trace_golden_thread()
             pause()
         elif choice == "9":
+            clear_screen()
+            explore_decision_history()
+            pause()
+        elif choice == "10":
             print("Exiting Steward Console.")
             break
         else:
