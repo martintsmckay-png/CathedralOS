@@ -1,13 +1,13 @@
+#!/usr/bin/env python3
+
 import hashlib
 import json
-import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 
 LEDGER_DIR = Path("ledger")
 CURRENT_LEDGER = LEDGER_DIR / "ledger-current.json"
-ENTRY_LIMIT = 50
-GENESIS_HASH = "0" * 64
 
 
 def canonical_bytes(data):
@@ -19,87 +19,83 @@ def canonical_bytes(data):
     ).encode("utf-8")
 
 
-def segment_hash(data):
-    unsigned = dict(data)
-    unsigned.pop("sha256", None)
-    return hashlib.sha256(canonical_bytes(unsigned)).hexdigest()
+def sha256_hex(data):
+    return hashlib.sha256(data).hexdigest()
 
 
-def init_ledger():
-    LEDGER_DIR.mkdir(parents=True, exist_ok=True)
-
+def load_current_ledger():
     if not CURRENT_LEDGER.exists():
-        initial_state = {
+        return {
             "segment": 1,
-            "previous_sha256": GENESIS_HASH,
-            "created_at": time.time(),
             "entries": [],
+            "previous_sha256": None,
         }
-        CURRENT_LEDGER.write_text(
-            json.dumps(initial_state, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
+
+    return json.loads(
+        CURRENT_LEDGER.read_text(encoding="utf-8")
+    )
 
 
-def rotate_ledger(force=False):
-    init_ledger()
+def save_current_ledger(data):
+    LEDGER_DIR.mkdir(parents=True, exist_ok=True)
+    content = f"{json.dumps(data, indent=2, ensure_ascii=False)}\n"
+    CURRENT_LEDGER.write_text(content, encoding="utf-8")
 
-    data = json.loads(CURRENT_LEDGER.read_text(encoding="utf-8"))
-    entries = data.get("entries", [])
 
-    if not entries and not force:
-        print("[ROTATION] No entries to rotate.")
-        return None
+def append_entry(entry):
+    ledger = load_current_ledger()
+    ledger.setdefault("entries", []).append(entry)
+    save_current_ledger(ledger)
 
-    segment_id = int(data.get("segment", 1))
-    digest = segment_hash(data)
 
-    sealed = dict(data)
-    sealed["sha256"] = digest
+def rotate_ledger(max_entries=512):
+    LEDGER_DIR.mkdir(parents=True, exist_ok=True)
+    ledger = load_current_ledger()
+    entries = ledger.get("entries", [])
+
+    if not entries:
+        return ""
+
+    digest = sha256_hex(canonical_bytes(ledger))
+    segment_id = int(ledger.get("segment", 1))
 
     archive_path = LEDGER_DIR / f"ledger-{segment_id:05d}.json"
 
     if archive_path.exists():
-        raise FileExistsError(f"Archive already exists: {archive_path}")
+        raise FileExistsError(
+            f"Archive already exists: {archive_path}"
+        )
 
-    archive_path.write_text(
-        json.dumps(sealed, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-
-    new_segment = {
-        "segment": segment_id + 1,
-        "previous_sha256": digest,
-        "created_at": time.time(),
-        "entries": [],
+    archive_payload = {
+        "segment": segment_id,
+        "entries": entries,
+        "previous_sha256": ledger.get("previous_sha256"),
+        "sha256": digest,
+        "segment_closed_at": datetime.now(
+            timezone.utc
+        ).isoformat(),
     }
 
-    CURRENT_LEDGER.write_text(
-        json.dumps(new_segment, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    archive_content = f"{json.dumps(archive_payload, indent=2, ensure_ascii=False)}\n"
+    archive_path.write_text(archive_content, encoding="utf-8")
 
-    print(f"[ROTATED] Sealed segment {segment_id} -> {archive_path}")
-    print(f"[SHA256] {digest}")
+    save_current_ledger({
+        "segment": segment_id + 1,
+        "entries": [],
+        "previous_sha256": digest,
+    })
+
     return digest
 
 
-def append_entry(entry):
-    init_ledger()
-
-    data = json.loads(CURRENT_LEDGER.read_text(encoding="utf-8"))
-    data.setdefault("entries", []).append(entry)
-
-    CURRENT_LEDGER.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
-
-    if len(data["entries"]) >= ENTRY_LIMIT:
-        return rotate_ledger()
-
-    return None
+def should_rotate(max_entries=512):
+    ledger = load_current_ledger()
+    return len(ledger.get("entries", [])) >= max_entries
 
 
 if __name__ == "__main__":
-    rotate_ledger()
+    if should_rotate():
+        digest = rotate_ledger()
+        print(f"[ROTATED] Sealed segment -> {digest}")
+    else:
+        print("[LEDGER] Rotation not required; below threshold.")
