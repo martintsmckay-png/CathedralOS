@@ -514,6 +514,116 @@ def explore_decision_history():
     print()
 
 
+def diff_segments():
+    print(Color.wrap(">> LEDGER SEGMENT DIFF", Color.CYAN))
+    print()
+
+    segments = sorted(LEDGER_DIR.glob("ledger-*.json"))
+    if len(segments) < 2:
+        print(Color.wrap("Need at least two segments to diff.", Color.YELLOW))
+        print()
+        return
+
+    for idx, seg_path in enumerate(segments, start=1):
+        print(f"{idx}. {Color.wrap(seg_path.name, Color.YELLOW)}")
+
+    print()
+    first = input("Select FIRST segment: ").strip()
+    second = input("Select SECOND segment: ").strip()
+
+    if not first or not second:
+        print(Color.wrap("Cancelled.", Color.YELLOW))
+        print()
+        return
+
+    if not first.isdigit() or not second.isdigit():
+        print(Color.wrap("Invalid selection.", Color.RED))
+        print()
+        return
+
+    i1, i2 = int(first), int(second)
+    if i1 < 1 or i1 > len(segments) or i2 < 1 or i2 > len(segments):
+        print(Color.wrap("Selection out of range.", Color.YELLOW))
+        print()
+        return
+
+    seg1 = segments[i1 - 1]
+    seg2 = segments[i2 - 1]
+
+    try:
+        with seg1.open("r", encoding="utf-8") as f:
+            data1 = json.load(f)
+        with seg2.open("r", encoding="utf-8") as f:
+            data2 = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(Color.wrap(f"Could not load segments: {exc}", Color.RED))
+        print()
+        return
+
+    entries1 = {
+        e.get("event_hash"): e
+        for e in data1.get("entries", [])
+        if e.get("event_hash")
+    }
+    entries2 = {
+        e.get("event_hash"): e
+        for e in data2.get("entries", [])
+        if e.get("event_hash")
+    }
+
+    added = [entries2[h] for h in entries2.keys() - entries1.keys()]
+    removed = [entries1[h] for h in entries1.keys() - entries2.keys()]
+    modified = [
+        (entries1[h], entries2[h])
+        for h in entries1.keys() & entries2.keys()
+        if entries1[h] != entries2[h]
+    ]
+
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print(Color.wrap("           SEGMENT DIFF RESULTS", Color.BOLD))
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print(f"Comparing: {seg1.name}  <->  {seg2.name}")
+    print()
+
+    print(Color.wrap("ADDED ENTRIES:", Color.GREEN))
+    if added:
+        for e in added:
+            print(f"  + {Color.wrap(e.get('event_hash'), Color.MAGENTA)}")
+            print(f"    Traveler: {e.get('traveler')}")
+            print(f"    Decision: {Color.wrap(e.get('decision'), Color.YELLOW)}")
+            print(f"    Timestamp: {e.get('timestamp')}")
+            print()
+    else:
+        print("  (none)")
+        print()
+
+    print(Color.wrap("REMOVED ENTRIES:", Color.RED))
+    if removed:
+        for e in removed:
+            print(f"  - {Color.wrap(e.get('event_hash'), Color.MAGENTA)}")
+            print(f"    Traveler: {e.get('traveler')}")
+            print(f"    Decision: {Color.wrap(e.get('decision'), Color.YELLOW)}")
+            print(f"    Timestamp: {e.get('timestamp')}")
+            print()
+    else:
+        print("  (none)")
+        print()
+
+    print(Color.wrap("MODIFIED ENTRIES:", Color.BLUE))
+    if modified:
+        for old, new in modified:
+            print(f"  * {Color.wrap(old.get('event_hash'), Color.MAGENTA)}")
+            print(f"    Old decision: {Color.wrap(old.get('decision'), Color.RED)}")
+            print(f"    New decision: {Color.wrap(new.get('decision'), Color.GREEN)}")
+            print()
+    else:
+        print("  (none)")
+        print()
+
+    print(Color.wrap("=" * 46, Color.CYAN))
+    print()
+
+
 def pause():
     input("Press Enter to return...")
 
@@ -532,7 +642,8 @@ def main_menu():
         print("7. Explore Ledger Segments")
         print("8. Trace Golden Thread")
         print("9. View Decision History")
-        print("10. Exit")
+        print("10. Diff Ledger Segments")
+        print("11. Exit")
         print()
 
         choice = input("Select option: ").strip()
@@ -596,6 +707,10 @@ def main_menu():
             explore_decision_history()
             pause()
         elif choice == "10":
+            clear_screen()
+            diff_segments()
+            pause()
+        elif choice == "11":
             print("Exiting Steward Console.")
             break
         else:
