@@ -36,8 +36,7 @@ def init_ledger():
             "entries": [],
         }
         CURRENT_LEDGER.write_text(
-            json.dumps(initial_state, indent=2, ensure_ascii=False) + "
-",
+            json.dumps(initial_state, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
 
@@ -64,8 +63,7 @@ def rotate_ledger(force=False):
         raise FileExistsError(f"Archive already exists: {archive_path}")
 
     archive_path.write_text(
-        json.dumps(sealed, indent=2, ensure_ascii=False) + "
-",
+        json.dumps(sealed, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
 
@@ -77,8 +75,7 @@ def rotate_ledger(force=False):
     }
 
     CURRENT_LEDGER.write_text(
-        json.dumps(new_segment, indent=2, ensure_ascii=False) + "
-",
+        json.dumps(new_segment, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
 
@@ -94,8 +91,7 @@ def append_entry(entry):
     data.setdefault("entries", []).append(entry)
 
     CURRENT_LEDGER.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False) + "
-",
+        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
 
