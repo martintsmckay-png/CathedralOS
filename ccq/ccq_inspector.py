@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-QUARANTINE_DIR = Path("ccq/quarantine")
+QUARANTINE_DIR = Path("ccq_quarantine")
 
 
 def list_quarantine_artifacts():
