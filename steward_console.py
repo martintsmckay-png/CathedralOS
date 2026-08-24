@@ -134,6 +134,50 @@ def inspect_quarantine():
     print()
 
 
+def select_quarantine_artifact():
+    print(">> CCQ QUARANTINE - SELECT ARTIFACT")
+
+    artifacts = list_quarantine_artifacts()
+
+    if not artifacts:
+        print("No pending quarantine artifacts.")
+        print()
+        return
+
+    for index, artifact_path in enumerate(artifacts, start=1):
+        print(f"{index}. {artifact_path.name}")
+
+    print()
+    choice = input("Select artifact number (or press Enter to cancel): ").strip()
+
+    if not choice:
+        print("Cancelled.")
+        print()
+        return
+
+    if not choice.isdigit():
+        print("Invalid selection.")
+        print()
+        return
+
+    index = int(choice)
+
+    if index < 1 or index > len(artifacts):
+        print("Selection out of range.")
+        print()
+        return
+
+    artifact_path = artifacts[index - 1]
+    report = inspect_artifact(artifact_path)
+
+    if report:
+        print_artifact_report(report)
+    else:
+        print(f"Could not load artifact: {artifact_path.name}")
+
+    print()
+
+
 def pause():
     input("Press Enter to return...")
 
@@ -175,9 +219,31 @@ def main_menu():
             record_test_event()
             pause()
         elif choice == "6":
-            clear_screen()
-            inspect_quarantine()
-            pause()
+            while True:
+                clear_screen()
+                banner()
+
+                print(">> CCQ QUARANTINE MENU")
+                print("1. View all artifact reports")
+                print("2. Select a single artifact")
+                print("3. Return to main menu")
+                print()
+
+                sub_choice = input("Select option: ").strip()
+
+                if sub_choice == "1":
+                    clear_screen()
+                    inspect_quarantine()
+                    pause()
+                elif sub_choice == "2":
+                    clear_screen()
+                    select_quarantine_artifact()
+                    pause()
+                elif sub_choice == "3":
+                    break
+                else:
+                    input("Invalid option. Press Enter to continue...")
+
         elif choice == "7":
             print("Exiting Steward Console.")
             break
