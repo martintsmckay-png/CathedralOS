@@ -332,8 +332,14 @@ class HomeBaseSceneOrchestrator {
   // ===========================================================================
 
   ingestSceneEvent(event = {}) {
-    if (!event || typeof event !== 'object') return;
-
+if (!event || typeof event !== 'object' || Array.isArray(event)) {
+  return {
+    handled: false,
+    channel: 'invalid_input',
+    error: 'INVALID_EVENT',
+    result: null
+  };
+}
     const normalized = {
       type: event.type || 'UNKNOWN_EVENT',
       payload: event.payload || {},
@@ -375,7 +381,42 @@ class HomeBaseSceneOrchestrator {
   // ===========================================================================
 
 _routeSoulEvent(event) {
+  // Reject non-object events early so we never spread null/undefined
+  if (event === null || typeof event !== 'object' || Array.isArray(event)) {
+    this._log(
+      '⚠️ [HOMEBASE] Invalid event passed to _routeSoulEvent (null/non-object).'
+    );
+
+    const invalidResult = {
+      handled: false,
+      channel: 'invalid_input',
+      error: 'INVALID_EVENT',
+      result: null
+    };
+
+    if (this.onSoulTelemetry) {
+      try {
+        this.onSoulTelemetry({
+          input: event,
+          output: invalidResult,
+          sceneState: this.getSceneState()
+        });
+      } catch (telemetryError) {
+        this._log(
+          `⚠️ [HOMEBASE] Soul telemetry callback failed: ${telemetryError.message}`
+        );
+      }
+    }
+
+    // Do not increment totalEvents (handled === false)
+    this.sceneState.soulStats.lastRoute = 'invalid_input';
+
+    return invalidResult;
+  }
+
+  // ... existing code continues here
   if (!this.soulVibe || typeof this.soulVibe.route !== 'function') {
+    // ...  if (!this.soulVibe || typeof this.soulVibe.route !== 'function') {
     this._log(
       '⚠️ [HOMEBASE] SoulVibe routing unavailable — missing route() adapter. Event dropped.'
     );
@@ -413,15 +454,17 @@ _routeSoulEvent(event) {
     }
   });
 
-  this.sceneState.lastSoulEvent = {
-    type: event.type,
-    source: event.source || 'unknown',
-    timestamp: Date.now()
-  };
-
+this.sceneState.lastSoulEvent = {
+  type: event?.type || 'UNKNOWN',
+  source: event?.source || 'unknown',
+  timestamp: Date.now()
+};
+if (result?.handled === true) {
   this.sceneState.soulStats.totalEvents += 1;
-  this.sceneState.soulStats.lastRoute = result?.channel || event.type;
+}
 
+this.sceneState.soulStats.lastRoute =
+  result?.channel || event?.type || 'UNKNOWN';
   if (this.onSoulTelemetry) {
     try {
       this.onSoulTelemetry({
