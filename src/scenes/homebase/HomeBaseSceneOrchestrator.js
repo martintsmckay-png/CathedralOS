@@ -3,7 +3,7 @@
 // Binds PrecogRuntimeOrchestrator + SoulVibeRouter into one live scene system.
 
 const PrecogRuntimeOrchestrator = require('../../subsystems/precog-runtime/precog-orchestrator');
-const SoulVibeRouter = require('../../subsystems/soul-vibe/SoulVibeRouter');
+const SoulVibeRouter = require('../../subsystems/precog-runtime/SoulVibeRouter');
 const RodentDJMixer = require('../../subsystems/homebase/RodentDJMixer');
 
 class HomeBaseSceneOrchestrator {
@@ -374,41 +374,70 @@ class HomeBaseSceneOrchestrator {
   // INTERNAL SOULVIBE ROUTING
   // ===========================================================================
 
-  _routeSoulEvent(event) {
-    if (!this.soulVibe || typeof this.soulVibe.route !== 'function') {
-      return null;
-    }
-
-    const result = this.soulVibe.route({
-      ...event,
-      sceneContext: {
-        mode: this.sceneState.mode,
-        activeNodeId: this.sceneState.activeNodeId,
-        playbackCursor: this.sceneState.playbackCursor,
-        timelineBounds: { ...this.sceneState.timelineBounds }
-      }
-    });
-
-    this.sceneState.lastSoulEvent = {
-      type: event.type,
-      source: event.source || 'unknown',
-      timestamp: Date.now()
-    };
-
-    this.sceneState.soulStats.totalEvents += 1;
-    this.sceneState.soulStats.lastRoute = result?.route || result?.channel || event.type;
+_routeSoulEvent(event) {
+  if (!this.soulVibe || typeof this.soulVibe.route !== 'function') {
+    this._log(
+      '⚠️ [HOMEBASE] SoulVibe routing unavailable — missing route() adapter. Event dropped.'
+    );
 
     if (this.onSoulTelemetry) {
+      try {
+        this.onSoulTelemetry({
+          input: event,
+          output: {
+            handled: false,
+            error: 'ROUTE_NOT_IMPLEMENTED'
+          },
+          sceneState: this.getSceneState()
+        });
+      } catch (telemetryError) {
+        this._log(
+          `⚠️ [HOMEBASE] Soul telemetry callback failed: ${telemetryError.message}`
+        );
+      }
+    }
+
+    return {
+      handled: false,
+      error: 'ROUTE_NOT_IMPLEMENTED'
+    };
+  }
+
+  const result = this.soulVibe.route({
+    ...event,
+    sceneContext: {
+      mode: this.sceneState.mode,
+      activeNodeId: this.sceneState.activeNodeId,
+      playbackCursor: this.sceneState.playbackCursor,
+      timelineBounds: { ...this.sceneState.timelineBounds }
+    }
+  });
+
+  this.sceneState.lastSoulEvent = {
+    type: event.type,
+    source: event.source || 'unknown',
+    timestamp: Date.now()
+  };
+
+  this.sceneState.soulStats.totalEvents += 1;
+  this.sceneState.soulStats.lastRoute = result?.channel || event.type;
+
+  if (this.onSoulTelemetry) {
+    try {
       this.onSoulTelemetry({
         input: event,
         output: result,
         sceneState: this.getSceneState()
       });
+    } catch (telemetryError) {
+      this._log(
+        `⚠️ [HOMEBASE] Soul telemetry callback failed: ${telemetryError.message}`
+      );
     }
-
-    return result;
   }
 
+  return result;
+}
   _applySceneEventSideEffects(event) {
     switch (event.type) {
       case 'AMBIENT_MODE_SET': {

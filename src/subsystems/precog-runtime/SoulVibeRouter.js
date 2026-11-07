@@ -97,15 +97,171 @@ class SoulVibeRouter {
     };
   }
 
-  // ---------------------------------------------------------------------------
-  // Main Soul Vibe Flow
-  // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Main Soul Vibe Flow
+// ---------------------------------------------------------------------------
 
-  /**
-   * Primary live-performance entry point.
-   * Use this when the room flips from "normal runtime" into "musical event".
-   */
-  startPerformance(track = {}) {
+/**
+ * Canonical event router bridging HomeBaseSceneOrchestrator events 
+ * into the SoulVibe subsystem.
+ * Complies with the emission delegation contract: delegates to native 
+ * handlers without double-emitting state.
+ */
+route(event) {
+  if (
+    event === null ||
+    typeof event !== 'object' ||
+    Array.isArray(event)
+  ) {
+    return {
+      handled: false,
+      channel: 'invalid_input',
+      error: 'INVALID_EVENT',
+      result: null
+    };
+  }
+
+  const type =
+    typeof event.type === 'string' && event.type.length > 0
+      ? event.type
+      : 'UNKNOWN';
+
+  const payload =
+    event.payload !== null && typeof event.payload === 'object'
+      ? event.payload
+      : {};
+
+  const sceneContext =
+    event.sceneContext !== null && typeof event.sceneContext === 'object'
+      ? event.sceneContext
+      : {};
+
+  let result;
+
+  try {
+    switch (type) {
+      case 'TOPOLOGY_LOADED':
+        result = {
+          handled: true,
+          channel: 'topology',
+          error: null,
+          result: {
+            nodeCount: Number(payload.nodeCount ?? 0)
+          }
+        };
+        break;
+
+case 'NODE_SELECTED':
+  result = {
+    handled: true,
+    channel: 'spatial_inspector',
+    error: null,
+    result: {
+      nodeId: payload.nodeId ?? null,
+      label: payload.label ?? null
+    }
+  };
+  break;
+
+      case 'TIMELINE_CURSOR_CHANGED':
+        if (this.performanceState.partyMode) {
+          this.emitCrowdEnergy(0.05, 'timeline_scrub');
+        }
+        result = {
+          handled: true,
+          channel: 'temporal_cursor',
+          error: null,
+          result: {
+            cursor: payload.cursor ?? null
+          }
+        };
+        break;
+
+      case 'SCENE_STARTED':
+      case 'SCENE_STOPPED':
+        result = {
+          handled: true,
+          channel: 'scene_lifecycle',
+          error: null,
+          result: {
+            mode: sceneContext.mode ?? null
+          }
+        };
+        break;
+
+      case 'S_O_U_L_VIBE_REMIX':
+        result = {
+          handled: true,
+          channel: 'butter_bus',
+          error: null,
+          result: this.activateKernelPulse({ intensity: 0.95 })
+        };
+        break;
+
+      case 'ENTITY_PING': {
+        const assignedRole = this.ingestEntityPacket(payload);
+        result = {
+          handled: true,
+          channel: 'entity_sorter',
+          error: null,
+          result: {
+            assignedRole
+          }
+        };
+        break;
+      }
+
+      default: {
+        const normalizedType = type.toLowerCase();
+        const performanceTypes = new Set([
+          'lyric',
+          'chorus',
+          'power_chord',
+          'stomp',
+          'crowd_response',
+          'doorbell'
+        ]);
+
+        if (performanceTypes.has(normalizedType)) {
+          const signalResult = this.ingestPerformanceSignal({
+            type: normalizedType,
+            payload,
+            intensity: payload.intensity ?? 0.5
+          });
+
+          result = {
+            handled: signalResult !== null,
+            channel: signalResult === null ? 'unhandled' : 'performance_signal',
+            error: null,
+            result: signalResult
+          };
+        } else {
+          this._log(`🌀 [SoulVibeRouter] Unhandled event channel: ${type}`);
+          result = {
+            handled: false,
+            channel: 'unhandled',
+            error: null,
+            result: null
+          };
+        }
+      }
+    }
+  } catch (error) {
+    this._log(
+      `❌ [SoulVibeRouter] Route handler failed for ${type}: ${error.message}`
+    );
+    result = {
+      handled: false,
+      channel: 'error',
+      error: 'ROUTE_HANDLER_FAILED',
+      result: null
+    };
+  }
+
+  return result;
+}
+
+startPerformance(track = {}) {
     const title = track.title || 'Unknown Track';
     const artist = track.artist || 'Unknown Artist';
     const bpm = Number(track.bpm || 0);
