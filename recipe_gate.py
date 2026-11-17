@@ -7,13 +7,22 @@ Auditor-grade pantry intelligence for the Sovereign Pie deployment.
 import argparse
 import csv
 import json
+import math
+import os
 import sys
+import tempfile
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 PANTRY_FILE = Path("pantry.json")
 SHOPPING_JSON = Path("shopping_list.json")
 SHOPPING_CSV = Path("shopping_list.csv")
 RESTOCK_LOG = Path("restock_log.jsonl")
+
+
+class DirectorySyncError(OSError):
+    """The file was replaced, but directory durability was not confirmed."""
 
 SOVEREIGN_PIE = {
     "graham crackers": (200.0, "g"),
@@ -88,26 +97,149 @@ def load_json(path, default):
 
 
 def save_json(path, data):
-    with path.open("w", encoding="utf-8") as file:
-        json.dump(data, file, indent=2)
-        file.write("\n")
+    """Write JSON through a same-directory temporary file and atomic replace."""
+    path = Path(path)
+    temporary_name = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=str(path.parent),
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as file:
+            temporary_name = file.name
+            json.dump(data, file, indent=2, allow_nan=False)
+            file.write("\n")
+            file.flush()
+            os.fsync(file.fileno())
+
+        os.replace(temporary_name, path)
+        temporary_name = None
+
+        # Replacement has succeeded. A directory-sync failure must not
+        # be reported as though the inventory file was never replaced.
+        try:
+            directory_fd = os.open(str(path.parent), os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        except OSError as error:
+            raise DirectorySyncError(
+                f"{path} was replaced, but directory sync failed: {error}"
+            ) from error
+
+    finally:
+        if temporary_name is not None:
+            try:
+                os.unlink(temporary_name)
+            except FileNotFoundError:
+                pass
 
 
-def load_pantry():
-    raw = load_json(PANTRY_FILE, {})
+def load_pantry(strict=False):
+    """Load pantry data; strict mode refuses damaged or invalid inventory."""
+    if strict:
+        if not PANTRY_FILE.exists():
+            return {}
+        try:
+            with PANTRY_FILE.open("r", encoding="utf-8") as file:
+                raw = json.load(file)
+        except (OSError, json.JSONDecodeError) as error:
+            raise ValueError(f"Cannot safely load pantry: {error}") from error
+
+        if not isinstance(raw, dict):
+            raise ValueError("Pantry root must be a JSON object.")
+    else:
+        raw = load_json(PANTRY_FILE, {})
+
     pantry = {}
     for name, value in raw.items():
+        if not isinstance(name, str) or not normalize(name):
+            if strict:
+                raise ValueError("Pantry contains an invalid ingredient name.")
+            continue
+
         if isinstance(value, dict):
             amount, unit = value.get("amount", 0), value.get("unit", "g")
         else:
             amount, unit = value, "g"
+
         try:
+            if isinstance(amount, bool):
+                raise ValueError("Boolean is not a valid quantity.")
             amount = float(amount)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as error:
+            if strict:
+                raise ValueError(
+                    f"Invalid quantity for '{name}'."
+                ) from error
             print(f"[AUDITOR WARNING] Non-numeric amount for '{name}'; treated as 0.")
             amount = 0.0
-        pantry[canonical_name(name)] = {"amount": amount, "unit": normalize(unit)}
+
+        if strict and (not math.isfinite(amount) or amount < 0):
+            raise ValueError(
+                f"Invalid quantity for '{name}': must be finite and non-negative."
+            )
+
+        if not isinstance(unit, str) or not normalize(unit):
+            if strict:
+                raise ValueError(f"Invalid unit for '{name}'.")
+            unit = "g"
+
+        pantry[canonical_name(name)] = {
+            "amount": amount,
+            "unit": normalize(unit),
+        }
+
     return pantry
+
+
+def append_ledger_event(event):
+    """Append one durable JSONL event."""
+    with RESTOCK_LOG.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(event, allow_nan=False) + "\n")
+        file.flush()
+        os.fsync(file.fileno())
+
+
+def unresolved_transactions():
+    """Return PREPARED transactions without a matching COMMITTED event."""
+    prepared = {}
+    committed = set()
+
+    if not RESTOCK_LOG.exists():
+        return []
+
+    with RESTOCK_LOG.open("r", encoding="utf-8") as file:
+        for line_number, line in enumerate(file, start=1):
+            if not line.strip():
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise ValueError(
+                    f"Invalid ledger JSON on line {line_number}."
+                ) from error
+
+            if not isinstance(event, dict):
+                raise ValueError(
+                    f"Invalid ledger record on line {line_number}."
+                )
+
+            transaction_id = event.get("transaction_id")
+            if event.get("event") == "PREPARED" and transaction_id:
+                prepared[transaction_id] = event
+            elif event.get("event") == "COMMITTED" and transaction_id:
+                committed.add(transaction_id)
+
+    return [
+        event for transaction_id, event in prepared.items()
+        if transaction_id not in committed
+    ]
 
 
 def find_duplicates(pantry):
@@ -191,32 +323,114 @@ def print_shopping_list(missing):
 
 
 def restock(ingredient, amount, unit):
-    pantry = load_pantry()
+    """Validate, prepare, and commit a restock with auditable transaction events."""
+    if not isinstance(ingredient, str) or not normalize(ingredient):
+        raise ValueError("Ingredient name must not be empty.")
+
+    if isinstance(amount, bool):
+        raise ValueError("Restock amount must be a finite, non-negative number.")
+
+    try:
+        quantity = float(amount)
+    except (TypeError, ValueError) as error:
+        raise ValueError("Restock amount must be numeric.") from error
+
+    if not math.isfinite(quantity) or quantity < 0:
+        raise ValueError("Restock amount must be finite and non-negative.")
+
+    if not isinstance(unit, str) or not normalize(unit):
+        raise ValueError("Unit must not be empty.")
+
     key = canonical_name(ingredient)
-    incoming = {"amount": float(amount), "unit": normalize(unit)}
+    incoming_unit = normalize(unit)
+
+    # Refuse new writes until earlier transactions are reconciled.
+    pending = unresolved_transactions()
+    if pending:
+        pending_ids = ", ".join(
+            str(event["transaction_id"]) for event in pending
+        )
+        raise RuntimeError(
+            "Cannot restock while unresolved restock transaction(s) exist: "
+            f"{pending_ids}. Reconcile the ledger first."
+        )
+
+    # Strict loading prevents damaged inventory from being treated as empty.
+    pantry = load_pantry(strict=True)
+
     if key in pantry:
-        converted = convert(incoming["amount"], incoming["unit"], pantry[key]["unit"])
+        converted = convert(quantity, incoming_unit, pantry[key]["unit"])
         if converted is None:
-            print(
-                f"[AUDITOR ERROR] Unit mismatch: cannot add {unit} to "
+            raise ValueError(
+                f"Unit mismatch: cannot add {unit} to "
                 f"existing {pantry[key]['unit']} stock for '{key}'."
             )
-            return
-        pantry[key]["amount"] += converted
+        if not math.isfinite(converted):
+            raise ValueError("Converted restock amount is not finite.")
+        new_amount = pantry[key]["amount"] + converted
+        new_unit = pantry[key]["unit"]
     else:
-        pantry[key] = incoming
-    save_json(PANTRY_FILE, pantry)
-    entry = {
-        "event": "RESTOCK",
+        new_amount = quantity
+        new_unit = incoming_unit
+
+    if not math.isfinite(new_amount):
+        raise ValueError("Resulting inventory balance is not finite.")
+
+    updated_pantry = dict(pantry)
+    updated_pantry[key] = {"amount": new_amount, "unit": new_unit}
+
+    transaction_id = str(uuid.uuid4())
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    prepared = {
+        "event": "PREPARED",
+        "transaction_id": transaction_id,
+        "timestamp": timestamp,
         "ingredient": key,
-        "amount": incoming["amount"],
-        "unit": incoming["unit"],
-        "new_amount": pantry[key]["amount"],
-        "new_unit": pantry[key]["unit"],
+        "amount": quantity,
+        "unit": incoming_unit,
+        "new_amount": new_amount,
+        "new_unit": new_unit,
     }
-    with RESTOCK_LOG.open("a", encoding="utf-8") as file:
-        file.write(json.dumps(entry) + "\n")
-    print(f"[AUDITOR] Restocked '{key}': now {pantry[key]['amount']:.2f} {pantry[key]['unit']}.")
+
+    # If this fails, inventory has not yet been changed.
+    append_ledger_event(prepared)
+
+    try:
+        save_json(PANTRY_FILE, updated_pantry)
+    except DirectorySyncError as error:
+        raise RuntimeError(
+            f"Inventory was replaced for transaction {transaction_id}, "
+            "but directory durability confirmation failed. "
+            "The PREPARED ledger event remains unresolved; inspect "
+            "unresolved_transactions() before further reconciliation."
+        ) from error
+    except OSError as error:
+        raise RuntimeError(
+            f"Inventory commit failed for transaction {transaction_id}; "
+            "the PREPARED ledger event remains unresolved."
+        ) from error
+
+    committed = {
+        "event": "COMMITTED",
+        "transaction_id": transaction_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "ingredient": key,
+        "new_amount": new_amount,
+        "new_unit": new_unit,
+    }
+
+    try:
+        append_ledger_event(committed)
+    except OSError as error:
+        raise RuntimeError(
+            f"Inventory was committed for transaction {transaction_id}, "
+            "but the COMMITTED ledger event could not be written. "
+            "Inspect unresolved_transactions() before further reconciliation."
+        ) from error
+
+    print(f"[AUDITOR] Restocked '{key}': now {new_amount:.2f} {new_unit}.")
+    return True
 
 
 def main():
