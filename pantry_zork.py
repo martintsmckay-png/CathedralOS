@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""CathedralOS — PantryZork v0.1
+"""CathedralOS — PantryZork v0.2
 Read-only inventory adventure. Automation recommends; human decides.
 """
 
+import hashlib
 import json
 import random
 from pathlib import Path
 
-PANTRY_FILE = Path(__file__).resolve().parent / "pantry.json"
+BASE_DIR = Path(__file__).resolve().parent
+PANTRY_FILE = BASE_DIR / "pantry.json"
+ENSEMBLE_WAV = BASE_DIR / "audio_foundry" / "cathedralos_v6_2_ensemble.wav"
+ENSEMBLE_SHA256 = (
+    "5a72509e79740ee3af5313a97ce9f47826e6d6a989f0618442e275c50d182316"
+)
 SEED = 369
 
 MALFUNCTIONS = [
@@ -63,6 +69,34 @@ def format_item(name, item):
         return f"{name}: quantity unverified"
 
     return f"{name}: {amount:g} {unit}"
+
+
+def describe_audio_bridge(context_label):
+    """Verify the ensemble artifact and recommend, but never launch, an action."""
+    relative_path = "audio_foundry/cathedralos_v6_2_ensemble.wav"
+
+    if not ENSEMBLE_WAV.is_file():
+        return (
+            f"{context_label}; the ensemble WAV is missing—human decides: "
+            "'python3 audio_foundry/render_v6_2_ensemble.py'"
+        )
+
+    try:
+        actual_hash = hashlib.sha256(ENSEMBLE_WAV.read_bytes()).hexdigest()
+    except OSError as exc:
+        return f"{context_label}; the ensemble WAV could not be read: {exc}"
+
+    if actual_hash != ENSEMBLE_SHA256:
+        return (
+            f"{context_label}; artifact integrity mismatch "
+            f"(SHA-256 {actual_hash})—playback is not recommended"
+        )
+
+    return (
+        f"{context_label}; verified v6.2 artifact "
+        f"(SHA-256 {actual_hash}) is present—human decides: "
+        f"'termux-media-player play {relative_path}'"
+    )
 
 
 def render_turn(command, pantry, source, rng):
@@ -132,6 +166,18 @@ def render_turn(command, pantry, source, rng):
                     "finds no matching pantry or room object"
                 )
 
+    elif action == "NORTH" or (action == "GO" and target == "north"):
+        sentence_one = describe_audio_bridge(
+            "You step through the NORTH archway toward Audio Foundry"
+        )
+
+    elif action == "PLAY" and target in {
+        "gramophone", "golden gramophone"
+    }:
+        sentence_one = describe_audio_bridge(
+            "You cue the Golden Gramophone needle"
+        )
+
     elif action == "LOOK":
         sentence_one = (
             f"You stand inside the Cathedral Pantry, reading "
@@ -141,7 +187,7 @@ def render_turn(command, pantry, source, rng):
     elif action == "HELP":
         sentence_one = (
             "The command tablet recognizes INVENTORY, INSPECT <item>, "
-            "LOOK, HELP, and QUIT"
+            "GO NORTH, NORTH, PLAY GRAMOPHONE, LOOK, HELP, and QUIT"
         )
 
     else:
@@ -177,12 +223,12 @@ def main():
     rng = random.Random(SEED)
     pantry, source = load_pantry()
 
-    print("=== CATHEDRALOS: PANTRYZORK v0.1 ===")
+    print("=== CATHEDRALOS: PANTRYZORK v0.2 ===")
     if source == "fallback rations":
         print("[RECOVERY DISPLAY — UNVERIFIED FALLBACK RATIONS]")
     else:
         print(f"Inventory source: {source}")
-    print("Type INVENTORY, INSPECT <item>, LOOK, HELP, or QUIT")
+    print("Type INVENTORY, INSPECT <item>, GO NORTH, PLAY GRAMOPHONE, LOOK, HELP, or QUIT")
 
     while True:
         try:

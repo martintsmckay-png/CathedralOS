@@ -69,5 +69,73 @@ class TestPantryZorkRegression(unittest.TestCase):
             )
 
 
+    def test_04_audio_foundry_bridge_verifies_before_recommending(self):
+        expected_hash = (
+            "5a72509e79740ee3af5313a97ce9f47826e6d6a989f0618442e275c50d182316"
+        )
+        playback = (
+            "termux-media-player play "
+            "audio_foundry/cathedralos_v6_2_ensemble.wav"
+        )
+        render = "python3 audio_foundry/render_v6_2_ensemble.py"
+
+        # Case A: Missing artifact recommends rendering only.
+        with tempfile.TemporaryDirectory() as tmp:
+            workdir = Path(tmp)
+            shutil.copy2(SOURCE_SCRIPT, workdir / "pantry_zork.py")
+
+            result = self._run_zork(
+                workdir,
+                "GO NORTH\nNORTH\nPLAY GRAMOPHONE\n"
+                "PLAY GOLDEN GRAMOPHONE\nQUIT\n",
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertGreaterEqual(result.stdout.count(render), 4)
+            self.assertNotIn(playback, result.stdout)
+
+        # Case B: Incorrect artifact hash must reject playback.
+        with tempfile.TemporaryDirectory() as tmp:
+            workdir = Path(tmp)
+            shutil.copy2(SOURCE_SCRIPT, workdir / "pantry_zork.py")
+            audio_dir = workdir / "audio_foundry"
+            audio_dir.mkdir()
+            (audio_dir / "cathedralos_v6_2_ensemble.wav").write_bytes(
+                b"RIFF-invalid-test-artifact"
+            )
+
+            result = self._run_zork(workdir, "GO NORTH\nQUIT\n")
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("artifact integrity mismatch", result.stdout)
+            self.assertNotIn(playback, result.stdout)
+
+        # Case C: Actual WAV must match the release hash before playback is suggested.
+        self.assertTrue(
+            (SOURCE_SCRIPT.parent / "audio_foundry" /
+             "cathedralos_v6_2_ensemble.wav").is_file(),
+            "Actual v6.2 WAV is required for this regression test.",
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workdir = Path(tmp)
+            shutil.copy2(SOURCE_SCRIPT, workdir / "pantry_zork.py")
+            audio_dir = workdir / "audio_foundry"
+            audio_dir.mkdir()
+            shutil.copy2(
+                SOURCE_SCRIPT.parent / "audio_foundry" /
+                "cathedralos_v6_2_ensemble.wav",
+                audio_dir / "cathedralos_v6_2_ensemble.wav",
+            )
+
+            result = self._run_zork(
+                workdir,
+                "NORTH\nPLAY GRAMOPHONE\n"
+                "PLAY GOLDEN GRAMOPHONE\nQUIT\n",
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertIn(expected_hash, result.stdout)
+            self.assertGreaterEqual(result.stdout.count(playback), 3)
+            self.assertNotIn(render, result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
