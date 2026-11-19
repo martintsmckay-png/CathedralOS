@@ -26,12 +26,21 @@ def validate_pantry_data(data):
 
         if isinstance(amount, bool) or not isinstance(amount, (int, float)):
             raise ValueError(f"Amount for '{name}' must be numeric (not bool), got {type(amount).__name__}.")
-        if not math.isfinite(amount):
+        if isinstance(amount, float) and not math.isfinite(amount):
             raise ValueError(f"Amount for '{name}' must be finite, got {amount!r}.")
         if amount < 0:
             raise ValueError(f"Amount for '{name}' cannot be negative, got {amount}.")
         if not isinstance(unit, str) or not unit.strip():
             raise ValueError(f"Unit for '{name}' must be a non-empty string, got {unit!r}.")
+
+
+def validate_pantry_contract(data):
+    """Return (valid, reason) without raising contract validation errors."""
+    try:
+        validate_pantry_data(data)
+    except ValueError as exc:
+        return False, str(exc)
+    return True, "Pantry contract validation passed."
 
 
 def validate_pantry(pantry_path=Path("pantry.json")):

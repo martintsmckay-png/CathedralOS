@@ -1,12 +1,49 @@
 #!/usr/bin/env python3
-"""CathedralOS — PantryZork v0.2
-Read-only inventory adventure. Automation recommends; human decides.
+"""CathedralOS — PantryZork v0.3
+Read-only exploration, explicit evidence states, ephemeral session journal.
+Automation recommends; humans decide.
 """
 
+import copy
 import hashlib
 import json
 import random
+from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
+
+try:
+    from validate_pantry_contract import validate_pantry_data
+except ImportError:
+    def validate_pantry_data(data):
+        """Standalone compatibility validator."""
+        if not isinstance(data, dict):
+            raise ValueError("Pantry root must be a dictionary.")
+        if not data:
+            raise ValueError("Pantry cannot be empty.")
+
+        for name, item in data.items():
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError("Ingredient name must be a non-empty string.")
+            if not isinstance(item, dict):
+                raise ValueError(f"Item '{name}' must be a dictionary.")
+            if "amount" not in item or "unit" not in item:
+                raise ValueError(f"Item '{name}' is incomplete.")
+
+            amount = item["amount"]
+            unit = item["unit"]
+
+            if isinstance(amount, bool) or not isinstance(amount, (int, float)):
+                raise ValueError(f"Amount for '{name}' must be numeric (not bool).")
+            if isinstance(amount, float):
+                import math
+                if not math.isfinite(amount):
+                    raise ValueError(f"Amount for '{name}' must be finite.")
+            if amount < 0:
+                raise ValueError(f"Amount for '{name}' cannot be negative.")
+            if not isinstance(unit, str) or not unit.strip():
+                raise ValueError(f"Unit for '{name}' must be a non-empty string.")
+
 
 BASE_DIR = Path(__file__).resolve().parent
 PANTRY_FILE = BASE_DIR / "pantry.json"
@@ -24,41 +61,128 @@ MALFUNCTIONS = [
 ]
 
 FALLBACK_RATIONS = {
-    "Carole's Mashed Potatoes": {"amount": None, "unit": "unverified ration"},
-    "Peanut Butter Pie": {"amount": None, "unit": "unverified ration"},
-    "Sourdough Starter": {"amount": None, "unit": "unverified ration"},
+    "Carole's Mashed Potatoes": {
+        "amount": None, "unit": "unverified ration"
+    },
+    "Peanut Butter Pie": {
+        "amount": None, "unit": "unverified ration"
+    },
+    "Sourdough Starter": {
+        "amount": None, "unit": "unverified ration"
+    },
 }
 
+WELCOME_TOKEN_LINE = "WELCOME TOKEN IS NARRATIVE-ONLY"
+INSCRIPTION_LINE = (
+    "Hospitality before hostility. Reality has the final vote."
+)
 
-def load_pantry():
-    """Load and validate inventory without modifying the ledger."""
-    if not PANTRY_FILE.exists():
-        return FALLBACK_RATIONS.copy(), "fallback rations"
+
+class PantryLoadState(Enum):
+    MISSING = "missing_file"
+    UNREADABLE = "unreadable_file"
+    MALFORMED_JSON = "malformed_json"
+    INVALID_CONTRACT = "valid_json_invalid_contract"
+    VALID_LIVE = "valid_json_valid_contract"
+
+
+@dataclass(frozen=True)
+class PantrySnapshot:
+    state: PantryLoadState
+    data: dict
+    contract_verified: bool
+    reason: str = ""
+    evidence_note: str = ""
+
+
+@dataclass(frozen=True)
+class SessionObservation:
+    pantry_state: str
+    origin: str
+    note: str
+
+
+@dataclass
+class SessionJournal:
+    """Process-local notes. Never writes to disk."""
+    observations: list = field(default_factory=list)
+
+    def record(self, snapshot, note):
+        normalized = " ".join(note.split())
+
+        if normalized:
+            origin = "user_input"
+            recorded_note = normalized
+        else:
+            origin = "fallback_state_note"
+            recorded_note = (
+                f"Observed pantry state={snapshot.state.value}"
+            )
+
+        observation = SessionObservation(
+            pantry_state=snapshot.state.value,
+            origin=origin,
+            note=recorded_note,
+        )
+        self.observations.append(observation)
+        return observation
+
+
+def load_pantry_snapshot(pantry_path=PANTRY_FILE):
+    """Read once and classify the pantry evidence state."""
+    pantry_path = Path(pantry_path)
 
     try:
-        data = json.loads(PANTRY_FILE.read_text(encoding="utf-8"))
+        raw = pantry_path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        print(f"[PANTRY WARNING] Ledger missing: {exc}")
+        return PantrySnapshot(
+            PantryLoadState.MISSING, {}, False, str(exc)
+        )
+    except (OSError, UnicodeError) as exc:
+        print(f"[PANTRY WARNING] Ledger unreadable: {exc}")
+        return PantrySnapshot(
+            PantryLoadState.UNREADABLE, {}, False,
+            f"{type(exc).__name__}: {exc}",
+        )
 
-        if not isinstance(data, dict):
-            raise ValueError("Pantry root must be an object")
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        print(f"[PANTRY WARNING] Malformed pantry JSON: {exc}")
+        return PantrySnapshot(
+            PantryLoadState.MALFORMED_JSON, {}, False, str(exc)
+        )
 
-        for name, item in data.items():
-            if not isinstance(name, str) or not isinstance(item, dict):
-                raise ValueError("Invalid inventory entry")
-            if "amount" not in item or "unit" not in item:
-                raise ValueError(f"Incomplete inventory entry: {name}")
-            amount = item["amount"]
-            if isinstance(amount, bool) or not isinstance(amount, (int, float)):
-                raise ValueError(f"Invalid amount for {name}")
-            if amount < 0:
-                raise ValueError(f"Negative amount for {name}")
-            if not isinstance(item["unit"], str):
-                raise ValueError(f"Invalid unit for {name}")
+    try:
+        validate_pantry_data(data)
+    except (ValueError, TypeError, OverflowError) as exc:
+        print(f"[PANTRY WARNING] Pantry contract rejected: {exc}")
+        return PantrySnapshot(
+            PantryLoadState.INVALID_CONTRACT, {}, False, str(exc)
+        )
 
-        return data, "live pantry.json"
+    return PantrySnapshot(
+        PantryLoadState.VALID_LIVE,
+        copy.deepcopy(data),
+        True,
+        "",
+        "Contract verified; this does not prove authenticity.",
+    )
 
-    except (OSError, json.JSONDecodeError, ValueError) as exc:
-        print(f"[PANTRY WARNING] Ledger unavailable: {exc}")
-        return FALLBACK_RATIONS.copy(), "fallback rations"
+
+def view_from_snapshot(snapshot):
+    """Derive a display view without modifying the evidence snapshot."""
+    if snapshot.state == PantryLoadState.VALID_LIVE:
+        return copy.deepcopy(snapshot.data), "live pantry.json"
+
+    return copy.deepcopy(FALLBACK_RATIONS), "fallback rations"
+
+
+def load_pantry(pantry_path=PANTRY_FILE):
+    """Legacy tuple interface retained for existing callers."""
+    snapshot = load_pantry_snapshot(pantry_path)
+    return view_from_snapshot(snapshot)
 
 
 def format_item(name, item):
@@ -68,11 +192,14 @@ def format_item(name, item):
     if amount is None:
         return f"{name}: quantity unverified"
 
+    if isinstance(amount, int):
+        return f"{name}: {amount} {unit}"
+
     return f"{name}: {amount:g} {unit}"
 
 
 def describe_audio_bridge(context_label):
-    """Verify the ensemble artifact and recommend, but never launch, an action."""
+    """Verify the artifact and recommend, but never launch, playback."""
     relative_path = "audio_foundry/cathedralos_v6_2_ensemble.wav"
 
     if not ENSEMBLE_WAV.is_file():
@@ -82,7 +209,9 @@ def describe_audio_bridge(context_label):
         )
 
     try:
-        actual_hash = hashlib.sha256(ENSEMBLE_WAV.read_bytes()).hexdigest()
+        actual_hash = hashlib.sha256(
+            ENSEMBLE_WAV.read_bytes()
+        ).hexdigest()
     except OSError as exc:
         return f"{context_label}; the ensemble WAV could not be read: {exc}"
 
@@ -100,7 +229,7 @@ def describe_audio_bridge(context_label):
 
 
 def render_turn(command, pantry, source, rng):
-    """Render exactly three sentences from the current inventory snapshot."""
+    """Render the original three-part adventure response."""
     command = command.strip()
     parts = command.split(maxsplit=1)
     action = parts[0].upper() if parts else "LOOK"
@@ -116,6 +245,7 @@ def render_turn(command, pantry, source, rng):
             format_item(name, item)
             for name, item in pantry.items()
         )
+
         if source == "fallback rations":
             sentence_one = (
                 "[RECOVERY DISPLAY — UNVERIFIED FALLBACK RATIONS] "
@@ -123,6 +253,8 @@ def render_turn(command, pantry, source, rng):
             )
         else:
             sentence_one = f"The ledger reveals {details}"
+
+        sentence_one += f"; {WELCOME_TOKEN_LINE}"
 
     elif action == "INSPECT":
         if not target:
@@ -136,7 +268,12 @@ def render_turn(command, pantry, source, rng):
                 None,
             )
 
-            if match:
+            if target == "garlic bread":
+                sentence_one = (
+                    f"You inspect the narrative welcome token. "
+                    f"{WELCOME_TOKEN_LINE}; {INSCRIPTION_LINE}"
+                )
+            elif match:
                 sentence_one = (
                     f"You inspect {format_item(match, pantry[match])}"
                 )
@@ -152,7 +289,7 @@ def render_turn(command, pantry, source, rng):
                 )
             elif target in {"pantry ledger", "ledger"}:
                 sentence_one = (
-                    f"You inspect the Pantry Ledger; "
+                    "You inspect the Pantry Ledger; "
                     f"{len(pantry)} ingredient entries are recorded"
                 )
             elif target in {"pie tin", "tin"}:
@@ -180,7 +317,7 @@ def render_turn(command, pantry, source, rng):
 
     elif action == "LOOK":
         sentence_one = (
-            f"You stand inside the Cathedral Pantry, reading "
+            "You stand inside the Cathedral Pantry, reading "
             f"{len(pantry)} inventory entries from {source}"
         )
 
@@ -197,12 +334,13 @@ def render_turn(command, pantry, source, rng):
         )
 
     sentence_two = rng.choice(MALFUNCTIONS)
-
     objects = "Pantry Ledger, Golden Gramophone, Pie Tin"
     exits = "NORTH to Audio Foundry, EAST to Open-Air Granite Staircase"
 
     if zero_stock:
-        warning = ", zero-stock warning detected for " + ", ".join(zero_stock)
+        warning = (
+            ", zero-stock warning detected for " + ", ".join(zero_stock)
+        )
         audio = "; optional Audio Foundry cue: 432 Hz reference with 369 Hz glitch"
     else:
         warning = ""
@@ -219,16 +357,86 @@ def render_turn(command, pantry, source, rng):
     )
 
 
+def render_guild(snapshot):
+    """Report known evidence; do not invent subsystem telemetry."""
+    return (
+        f"Pantry evidence state: {snapshot.state.value}\n"
+        f"Contract verified: {snapshot.contract_verified}\n"
+        "Detector status unavailable. Evidence: "
+        "no detector result supplied."
+    )
+
+
+def render_log(journal):
+    if not journal.observations:
+        return "No in-memory session notes recorded in this run."
+
+    lines = [
+        "SESSION LOG — IN-MEMORY ONLY — NOT PERSISTED"
+    ]
+
+    for index, observation in enumerate(journal.observations, 1):
+        lines.append(
+            f"{index}. state={observation.pantry_state}; "
+            f"origin={observation.origin}; note={observation.note}"
+        )
+
+    return "\n".join(lines)
+
+
+def dispatch_command(command, snapshot, journal=None, rng=None):
+    """Dispatch one command without persistent side effects."""
+    command = command.strip()
+    parts = command.split(maxsplit=1)
+    action = parts[0].upper() if parts else "LOOK"
+    argument = parts[1] if len(parts) > 1 else ""
+
+    if action in {"QUIT", "EXIT"}:
+        return "You leave the Cathedral Pantry.", True
+
+    if action == "SENSE":
+        if journal is None:
+            return "Cannot SENSE: no journal supplied.", False
+
+        observation = journal.record(snapshot, argument)
+        return (
+            f"recorded pantry state={observation.pantry_state}; "
+            f"origin={observation.origin}; note={observation.note}",
+            False,
+        )
+
+    if action == "LOG":
+        if journal is None:
+            return "Cannot read session log: no journal supplied.", False
+        return render_log(journal), False
+
+    if action == "GUILD":
+        return render_guild(snapshot), False
+
+    pantry, source = view_from_snapshot(snapshot)
+    return render_turn(command, pantry, source, rng or random.Random(SEED)), False
+
+
 def main():
     rng = random.Random(SEED)
-    pantry, source = load_pantry()
 
-    print("=== CATHEDRALOS: PANTRYZORK v0.2 ===")
+    # One disk read. All session views derive from this snapshot.
+    snapshot = load_pantry_snapshot(PANTRY_FILE)
+    pantry, source = view_from_snapshot(snapshot)
+    journal = SessionJournal()
+
+    print("=== CATHEDRALOS: PANTRYZORK v0.3 ===")
+    print(f"Pantry state={snapshot.state.value}")
+
     if source == "fallback rations":
         print("[RECOVERY DISPLAY — UNVERIFIED FALLBACK RATIONS]")
     else:
         print(f"Inventory source: {source}")
-    print("Type INVENTORY, INSPECT <item>, GO NORTH, PLAY GRAMOPHONE, LOOK, HELP, or QUIT")
+
+    print(
+        "Type INVENTORY, INSPECT <item>, GO NORTH, PLAY GRAMOPHONE, "
+        "SENSE [note], LOG, GUILD, LOOK, HELP, or QUIT"
+    )
 
     while True:
         try:
@@ -237,15 +445,19 @@ def main():
             print("\nThe pantry doors close quietly.")
             break
 
-        if command.lower() in {"quit", "exit"}:
-            print("You leave the Cathedral Pantry.")
-            break
-
         if not command:
             continue
 
+        output, should_quit = dispatch_command(
+            command, snapshot, journal, rng
+        )
+
+        if should_quit:
+            print(output)
+            break
+
         print()
-        print(render_turn(command, pantry, source, rng))
+        print(output)
 
 
 if __name__ == "__main__":
