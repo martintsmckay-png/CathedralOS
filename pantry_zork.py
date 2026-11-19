@@ -35,7 +35,9 @@ except ModuleNotFoundError as exc:
 
 try:
     from validate_pantry_contract import validate_pantry_data
-except ImportError:
+except ModuleNotFoundError as exc:
+    if exc.name != "validate_pantry_contract":
+        raise
     def validate_pantry_data(data):
         """Standalone compatibility validator."""
         if not isinstance(data, dict):
