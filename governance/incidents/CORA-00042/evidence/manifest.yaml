@@ -1,0 +1,48 @@
+schema_version: "1.0"
+incident_id: "CORA-00042"
+status: "template"
+classification: "governance-incident-evidence"
+created_at: null
+created_by: null
+
+# Replace null values with verified records. Never invent timestamps or hashes.
+evidence:
+  - evidence_id: "EV-001"
+    description: "Original alert or triggering event"
+    source: null
+    captured_at: null
+    captured_by: null
+    sha256: null
+    storage_reference: null
+    notes: null
+
+  - evidence_id: "EV-002"
+    description: "Affected manifest/configuration and version identifier"
+    source: null
+    captured_at: null
+    captured_by: null
+    sha256: null
+    storage_reference: null
+    notes: null
+
+  - evidence_id: "EV-003"
+    description: "Independent effective-permissions inspection"
+    source: null
+    captured_at: null
+    captured_by: null
+    sha256: null
+    storage_reference: null
+    notes: null
+
+decisions:
+  - decision_id: "DEC-001"
+    description: "Severity and containment decision"
+    decided_by: null
+    decided_at: null
+    evidence_refs: []
+    rationale: null
+
+integrity_notes:
+  - "Do not overwrite original evidence."
+  - "Record unknown values as null; do not infer them."
+  - "A component's self-report is not independent verification."
