@@ -394,3 +394,89 @@ def test_hardening_06b_raised_callbacks_are_unverified(tmp_path: Path):
             for item in report.items
         )
         assert report.mutated is False
+
+
+@pytest.mark.parametrize(
+    (
+        "case_name",
+        "make_reader",
+        "expected_claim_fragment",
+        "expected_limitation_fragment",
+        "forbidden_limitation_fragments",
+    ),
+    [
+        (
+            "verified_true",
+            lambda: make_snapshot(),
+            "contract_verified=True",
+            None,
+            (
+                "contract_verified=False",
+                "did not report contract_verified=True",
+            ),
+        ),
+        (
+            "verified_false",
+            lambda: SimpleNamespace(
+                state=SimpleNamespace(value="DEGRADED_OR_UNVERIFIED"),
+                contract_verified=False,
+            ),
+            "contract_verified=False",
+            "contract_verified=False",
+            ("did not report contract_verified=True",),
+        ),
+        (
+            "verified_none",
+            lambda: SimpleNamespace(
+                state=SimpleNamespace(value="UNKNOWN_STATE"),
+                contract_verified=None,
+            ),
+            "contract_verified=None",
+            "did not report contract_verified=True",
+            ("contract_verified=False",),
+        ),
+        (
+            "verified_missing_attr",
+            lambda: SimpleNamespace(
+                state=SimpleNamespace(value="PARTIAL_OBJECT"),
+            ),
+            "contract_verified=None",
+            "did not report contract_verified=True",
+            ("contract_verified=False",),
+        ),
+    ],
+    ids=[
+        "verified_true",
+        "verified_false",
+        "verified_none",
+        "verified_missing_attr",
+    ],
+)
+def test_hardening_07_pantry_contract_verified_boundaries(
+    tmp_path: Path,
+    case_name: str,
+    make_reader,
+    expected_claim_fragment: str,
+    expected_limitation_fragment: str | None,
+    forbidden_limitation_fragments: tuple[str, ...],
+):
+    root = tmp_path / "repo"
+    root.mkdir()
+
+    report = exploration.inspect_chamber(
+        exploration.ExplorationState("pantry"),
+        root=root,
+        pantry_reader=make_reader,
+    )
+
+    assert report.mutated is False
+    assert any(expected_claim_fragment in claim for claim in report.claims)
+
+    for forbidden in forbidden_limitation_fragments:
+        assert not any(forbidden in lim for lim in report.limitations)
+
+    if expected_limitation_fragment is not None:
+        assert any(
+            expected_limitation_fragment in lim
+            for lim in report.limitations
+        )

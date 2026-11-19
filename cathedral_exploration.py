@@ -533,10 +533,27 @@ def inspect_chamber(
                 else:
                     snapshot_state = getattr(getattr(snapshot, "state", None), "value", None)
                     verified = getattr(snapshot, "contract_verified", None)
-                    claims.append(
-                        f"Injected pantry snapshot returned state={snapshot_state!r}, "
-                        f"contract_verified={verified!r}."
-                    )
+                    if verified is True:
+                        claims.append(
+                            f"Injected pantry snapshot returned state={snapshot_state!r}, "
+                            f"contract_verified=True."
+                        )
+                    elif verified is False:
+                        claims.append(
+                            f"Injected pantry snapshot returned state={snapshot_state!r}, "
+                            f"contract_verified=False."
+                        )
+                        limitations.append(
+                            "Injected pantry snapshot reports contract_verified=False; pantry contract is not verified."
+                        )
+                    else:
+                        claims.append(
+                            f"Injected pantry snapshot returned state={snapshot_state!r}, "
+                            f"contract_verified={verified!r}."
+                        )
+                        limitations.append(
+                            "Injected pantry snapshot did not report contract_verified=True; contract verification is unconfirmed."
+                        )
                     items.append(EvidenceItem(
                         path="pantry.json",
                         status="snapshot",
