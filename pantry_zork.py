@@ -13,6 +13,27 @@ from enum import Enum
 from pathlib import Path
 
 try:
+    from cathedral_exploration import (
+        ExplorationState,
+        format_evidence_report,
+        inspect_chamber,
+        move as move_exploration,
+        render_chamber,
+        render_map,
+    )
+    EXPLORATION_AVAILABLE = True
+except ModuleNotFoundError as exc:
+    if exc.name != "cathedral_exploration":
+        raise
+    EXPLORATION_AVAILABLE = False
+    ExplorationState = None
+    format_evidence_report = None
+    inspect_chamber = None
+    move_exploration = None
+    render_chamber = None
+    render_map = None
+
+try:
     from validate_pantry_contract import validate_pantry_data
 except ImportError:
     def validate_pantry_data(data):
@@ -384,8 +405,14 @@ def render_log(journal):
     return "\n".join(lines)
 
 
-def dispatch_command(command, snapshot, journal=None, rng=None):
-    """Dispatch one command without persistent side effects."""
+def dispatch_command(
+    command, snapshot, journal=None, rng=None, exploration=None
+):
+    """Dispatch one command without persistent side effects.
+
+    The optional exploration dictionary holds a replaceable immutable
+    ExplorationState for this process-local session.
+    """
     command = command.strip()
     parts = command.split(maxsplit=1)
     action = parts[0].upper() if parts else "LOOK"
@@ -393,6 +420,41 @@ def dispatch_command(command, snapshot, journal=None, rng=None):
 
     if action in {"QUIT", "EXIT"}:
         return "You leave the Cathedral Pantry.", True
+
+    # Exploration commands are opt-in. Legacy commands continue below.
+    if exploration is not None and action == "MOVE":
+        if not argument:
+            return "Usage: MOVE NORTH|EAST|SOUTH|WEST", False
+
+        try:
+            result = move_exploration(
+                exploration["state"], argument
+            )
+        except ValueError as exc:
+            return str(exc), False
+
+        if result.moved:
+            exploration["state"] = result.state
+
+        return result.message, False
+
+    if exploration is not None and action == "MAP":
+        return render_map(exploration["state"]), False
+
+    if exploration is not None and action == "CHAMBER":
+        return render_chamber(exploration["state"]), False
+
+    if exploration is not None and action == "EVIDENCE":
+        state = exploration["state"]
+        report = inspect_chamber(
+            state,
+            root=BASE_DIR,
+            pantry_reader=lambda: snapshot,
+            audio_reader=lambda: describe_audio_bridge(
+                "Audio Foundry evidence inspection"
+            ),
+        )
+        return format_evidence_report(report), False
 
     if action == "SENSE":
         if journal is None:
@@ -424,6 +486,11 @@ def main():
     snapshot = load_pantry_snapshot(PANTRY_FILE)
     pantry, source = view_from_snapshot(snapshot)
     journal = SessionJournal()
+    exploration = (
+        {"state": ExplorationState()}
+        if EXPLORATION_AVAILABLE
+        else None
+    )
 
     print("=== CATHEDRALOS: PANTRYZORK v0.3 ===")
     print(f"Pantry state={snapshot.state.value}")
@@ -435,7 +502,8 @@ def main():
 
     print(
         "Type INVENTORY, INSPECT <item>, GO NORTH, PLAY GRAMOPHONE, "
-        "SENSE [note], LOG, GUILD, LOOK, HELP, or QUIT"
+        "SENSE [note], LOG, GUILD, MOVE <direction>, MAP, "
+        "CHAMBER, EVIDENCE, LOOK, HELP, or QUIT"
     )
 
     while True:
@@ -449,7 +517,7 @@ def main():
             continue
 
         output, should_quit = dispatch_command(
-            command, snapshot, journal, rng
+            command, snapshot, journal, rng, exploration
         )
 
         if should_quit:
